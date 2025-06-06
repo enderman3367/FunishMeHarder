@@ -47,7 +47,7 @@ class GameEngine:
         # Screen dimensions (will be set during initialization)
         self.screen_width = 1280
         self.screen_height = 720
-        
+    
     def initialize(self):
         """
         Initialize all game systems

@@ -62,7 +62,7 @@ class Heavy(Character):
         self.power_stance_active = False
         self.power_stance_timer = 0.0
         self.power_stance_duration = 5.0
-        self.damage_multiplier = 1.0
+        self.damage_multiplier = 1.0  # For armor stance damage reduction
         self.grab_range = 1.5  # Extended grab range
         
         # Special move properties
@@ -79,153 +79,264 @@ class Heavy(Character):
         self.name = "Heavy"
         self.description = "Massive fighter with devastating power and iron defense"
     
-    def perform_side_special(self, direction):
+    def perform_attack(self, direction):
         """
-        Charging Ram - Armored charge attack
+        Heavy-specific attack implementation with powerful, slow attacks
+        """
+        if not self.can_act or self.is_attacking:
+            return
         
-        TODO:
-        - Enter charging state with forward movement
-        - Grant super armor during startup and active frames
-        - High damage and knockback on hit
-        - Can break through other attacks
-        - Long recovery if whiffed
-        """
-        pass
+        print(f"Heavy performing {direction} attack!")
+        
+        self.is_attacking = True
+        self.attack_state_frames = 0
+        self.can_act = False
+        
+        # Heavy-specific attacks - slow but devastating
+        if direction == 'neutral':
+            # Heavy punch with armor
+            self.change_state(CharacterState.LIGHT_ATTACK)
+            self.current_attack = {
+                'type': 'heavy_punch',
+                'startup_frames': 8,
+                'active_frames': 6,
+                'recovery_frames': 12,
+                'damage': 14,
+                'knockback': 9,
+                'range': 75,
+                'has_armor': True,
+                'armor_frames': 10  # Armor during startup
+            }
+        elif direction == 'side':
+            # Devastating hammer slam
+            self.change_state(CharacterState.HEAVY_ATTACK)
+            self.current_attack = {
+                'type': 'hammer_slam',
+                'startup_frames': 18,  # Very slow startup
+                'active_frames': 8,
+                'recovery_frames': 25,
+                'damage': 22,  # Highest damage
+                'knockback': 15,
+                'range': 85,
+                'has_armor': True,
+                'armor_frames': 15
+            }
+        elif direction == 'up':
+            # Ground pound with shockwave
+            self.change_state(CharacterState.UP_SPECIAL)
+            self.current_attack = {
+                'type': 'ground_pound',
+                'startup_frames': 15,
+                'active_frames': 10,
+                'recovery_frames': 30,
+                'damage': 18,
+                'knockback': 12,
+                'range': 120,  # Wide area
+                'has_shockwave': True
+            }
+        elif direction == 'down':
+            # Armor stance (damage reduction + super armor)
+            self.change_state(CharacterState.DOWN_SPECIAL)
+            self.current_attack = {
+                'type': 'armor_stance',
+                'startup_frames': 10,
+                'active_frames': 8,
+                'recovery_frames': 12,
+                'damage': 0,
+                'knockback': 0,
+                'range': 0,
+                'is_stance': True,
+                'stance_duration': 240  # 4 seconds
+            }
+        
+        # Apply armor if attack has it
+        if self.current_attack.get('has_armor', False):
+            self.activate_super_armor(self.current_attack['armor_frames'])
+        
+        self.attack_hitbox_created = False
     
-    def perform_up_special(self):
+    def activate_super_armor(self, duration):
         """
-        Ground Pound Jump - Recovery with area damage
-        
-        TODO:
-        - High vertical jump for recovery
-        - Create shockwave on landing
-        - Damage in area around landing point
-        - Can spike opponents if they're hit during descent
-        - Causes screen shake on impact
+        Activate super armor for the Heavy
         """
-        pass
+        self.has_super_armor = True
+        self.armor_timer = duration
+        print(f"Heavy activated super armor for {duration} frames!")
     
-    def perform_down_special(self):
+    def create_attack_hitbox(self):
         """
-        Seismic Slam - Ground-based area attack
+        Heavy-specific hitbox creation with area effects
+        """
+        if not self.current_attack:
+            return
         
-        TODO:
-        - Powerful ground pound creating shockwaves
-        - Hits opponents in front and behind
-        - Unblockable if opponent is on ground
-        - Long startup but massive damage
-        - Creates debris visual effects
-        """
-        pass
+        attack_type = self.current_attack['type']
+        
+        if attack_type == 'armor_stance':
+            # Apply armor stance buff
+            self.apply_armor_stance()
+        elif attack_type == 'ground_pound':
+            # Create large area hitbox
+            self.create_ground_pound_hitbox()
+        else:
+            # Regular melee attacks but larger
+            hitbox_range = self.current_attack.get('range', 75)
+            hitbox_offset_x = hitbox_range if self.facing_right else -hitbox_range
+            hitbox_offset_y = -50
+            
+            hitbox_x = self.position[0] + hitbox_offset_x
+            hitbox_y = self.position[1] + hitbox_offset_y
+            
+            # Create large hitbox
+            hitbox = {
+                'x': hitbox_x,
+                'y': hitbox_y,
+                'width': 70,  # Larger than other characters
+                'height': 60,
+                'damage': self.current_attack['damage'],
+                'knockback': self.current_attack['knockback'],
+                'knockback_angle': self.get_heavy_knockback_angle(),
+                'owner': self,
+                'frames_remaining': self.current_attack['active_frames'],
+                'attack_type': attack_type
+            }
+            
+            self.active_hitboxes.append(hitbox)
+            print(f"Created {attack_type} hitbox!")
     
-    def perform_neutral_special(self):
+    def create_ground_pound_hitbox(self):
         """
-        Power Stance - Temporary enhancement mode
+        Create ground pound area effect
+        """
+        # Large circular area around Heavy
+        hitbox = {
+            'x': self.position[0],
+            'y': self.position[1] - 20,
+            'width': 120,
+            'height': 80,
+            'damage': self.current_attack['damage'],
+            'knockback': self.current_attack['knockback'],
+            'knockback_angle': -60,  # Upward angle
+            'owner': self,
+            'frames_remaining': self.current_attack['active_frames'],
+            'attack_type': 'ground_pound',
+            'is_area_attack': True
+        }
         
-        TODO:
-        - Enter powered-up state
-        - Gain super armor on attacks
-        - Increase damage output by 30%
-        - Slight speed increase
-        - Limited duration with long cooldown
-        """
-        pass
+        self.active_hitboxes.append(hitbox)
+        print("Heavy created ground pound shockwave!")
     
-    def perform_command_grab(self):
+    def apply_armor_stance(self):
         """
-        Command Grab - Heavy-specific grab attack
+        Apply armor stance buff
+        """
+        self.power_stance_active = True
+        self.power_stance_timer = self.current_attack['stance_duration']
+        self.damage_multiplier = 0.5  # Take half damage
+        self.has_super_armor = True
+        self.armor_timer = self.current_attack['stance_duration']
         
-        TODO:
-        - Unblockable grab with extended range
-        - High damage throw
-        - Can grab opponents out of certain attacks
-        - Different follow-ups based on position
-        - Signature move for heavy characters
-        """
-        pass
+        print("Heavy entered armor stance!")
     
-    def apply_super_armor(self, duration):
+    def get_heavy_knockback_angle(self):
         """
-        Apply super armor that absorbs attacks
+        Get knockback angle for Heavy attacks
+        """
+        attack_type = self.current_attack['type']
         
-        TODO:
-        - Set armor timer and flags
-        - Character takes damage but no knockback/hitstun
-        - Visual indicator (flashing, aura effect)
-        - Can be broken by powerful attacks
-        """
-        pass
+        if attack_type == 'ground_pound':
+            return -60  # Strong upward
+        elif attack_type == 'hammer_slam':
+            return -20  # Slight upward
+        else:
+            return 0    # Horizontal
     
-    def create_shockwave(self, center_x, center_y, radius, damage):
+    def update(self, delta_time, player_input, stage):
         """
-        Create area-of-effect shockwave attack
+        Override update to handle armor and stance mechanics
+        """
+        # Handle super armor timer
+        if self.has_super_armor and self.armor_timer > 0:
+            self.armor_timer -= 1
+            if self.armor_timer <= 0:
+                self.has_super_armor = False
+                print("Heavy super armor ended")
         
-        TODO:
-        - Create circular hitbox at specified location
-        - Damage decreases with distance from center
-        - Unblockable ground-based attack
-        - Visual ripple effect
-        - Screen shake based on proximity
-        """
-        pass
+        # Handle power stance timer
+        if self.power_stance_active and self.power_stance_timer > 0:
+            self.power_stance_timer -= 1
+            if self.power_stance_timer <= 0:
+                self.end_power_stance()
+        
+        # Call parent update
+        super().update(delta_time, player_input, stage)
     
-    def update(self, delta_time, player_input, stage_bounds):
+    def end_power_stance(self):
         """
-        Override update to handle heavy-specific mechanics
+        End the power stance effect
+        """
+        self.power_stance_active = False
+        self.damage_multiplier = 1.0
+        self.has_super_armor = False
         
-        TODO:
-        - Call parent update
-        - Update armor timers
-        - Handle power stance duration
-        - Update shockwave effects
-        - Process heavy-specific physics
-        """
-        # TODO: Call super().update() first
-        # Then handle heavy-specific updates
-        pass
+        print("Heavy armor stance ended")
     
     def take_damage(self, damage, knockback_vector, attacker):
         """
         Override damage handling for super armor
-        
-        TODO:
-        - Check if super armor is active
-        - If armored: take damage but no knockback/hitstun
-        - If not armored: call parent take_damage
-        - Show different visual effects for armored hits
         """
-        pass
+        if self.has_super_armor:
+            # Take damage but no knockback or hitstun
+            self.damage_percent += damage * self.damage_multiplier
+            
+            # Visual effects but no knockback
+            self.hit_flash_timer = 0.1
+            
+            print(f"Heavy absorbed hit with super armor! {damage * self.damage_multiplier:.1f} damage")
+        else:
+            # Normal damage handling
+            super().take_damage(damage, knockback_vector, attacker)
     
-    def get_character_specific_stats(self):
+    def render(self, screen, camera_offset=(0, 0)):
         """
-        Return heavy-specific information for UI display
+        Override render to show Heavy-specific effects
+        """
+        # Call parent render
+        super().render(screen, camera_offset)
         
-        TODO:
-        - Return dict with character stats
-        - Emphasize power and defense
-        - Show special mechanics
-        """
-        return {
-            "name": self.name,
-            "description": self.description,
-            "archetype": "Grappler",
-            "difficulty": "Intermediate",
-            "stats": {
-                "speed": 3,
-                "power": 10,
-                "defense": 10,
-                "recovery": 5
-            },
-            "special_abilities": [
-                "Super Armor",
-                "Command Grabs",
-                "Area Attacks",
-                "Power Stance"
-            ],
-            "special_moves": {
-                "side": "Charging Ram",
-                "up": "Ground Pound Jump",
-                "down": "Seismic Slam",
-                "neutral": "Power Stance"
-            }
-        } 
+        screen_x = self.position[0] - camera_offset[0]
+        screen_y = self.position[1] - camera_offset[1]
+        
+        # Super armor visual effect
+        if self.has_super_armor:
+            # Draw armor glow around character
+            armor_rect = pygame.Rect(
+                screen_x - self.width // 2 - 5,
+                screen_y - self.height - 5,
+                self.width + 10,
+                self.height + 10
+            )
+            pygame.draw.rect(screen, (255, 215, 0), armor_rect, 3)  # Gold outline
+        
+        # Power stance visual effect
+        if self.power_stance_active:
+            # Draw energy aura
+            for i in range(3):
+                aura_rect = pygame.Rect(
+                    screen_x - self.width // 2 - (i * 3),
+                    screen_y - self.height - (i * 3),
+                    self.width + (i * 6),
+                    self.height + (i * 6)
+                )
+                pygame.draw.rect(screen, (255, 100, 100, 100 - i * 30), aura_rect, 2)
+        
+        # Ground pound shockwave effect
+        for hitbox in self.active_hitboxes:
+            if hitbox.get('attack_type') == 'ground_pound':
+                # Draw expanding shockwave rings
+                import math
+                for i in range(3):
+                    radius = 40 + (self.attack_state_frames * 5) + (i * 20)
+                    if radius < 100:
+                        pygame.draw.circle(screen, (139, 69, 19, 150 - i * 50), 
+                                         (int(screen_x), int(screen_y)), int(radius), 3) 

@@ -71,9 +71,9 @@ class Character:
         self.jump_strength = 15.0
         self.short_hop_strength = 8.0   # For light jump inputs
         
-        # Character stats
-        self.max_health = 100
-        self.current_health = self.max_health
+        # Character stats (Smash Bros style - damage goes UP from 0%)
+        self.damage_percent = 0.0  # Starts at 0%, goes up when hit
+        self.max_damage_percent = 999.0  # Theoretical max (usually KO'd before this)
         self.weight = 1.0  # Affects knockback and fall speed
         
         # Ground and collision state
@@ -256,7 +256,8 @@ class Character:
         
         # Update position
         old_position = self.position.copy()
-        self.position += self.velocity * 60.0 * delta_time  # 60fps normalization
+        self.position[0] += self.velocity[0] * 60.0 * delta_time  # 60fps normalization
+        self.position[1] += self.velocity[1] * 60.0 * delta_time
         
         # Basic ground collision (will be replaced with proper stage collision)
         if self.position[1] > 500:  # Ground level
@@ -358,20 +359,23 @@ class Character:
     
     def take_damage(self, damage, knockback_vector, attacker):
         """
-        Handle taking damage with smooth knockback and hitstun
+        Handle taking damage with Smash Bros style percentage and scaling knockback
         """
         if self.invincibility_timer > 0:
             return  # Invincible
         
-        # Apply damage
-        self.current_health -= damage
+        # Apply damage (increase percentage)
+        self.damage_percent += damage
         
-        # Apply knockback with weight consideration
-        knockback_force = knockback_vector / self.weight
-        self.velocity += knockback_force
+        # Scale knockback based on damage percentage (like Smash Bros)
+        damage_multiplier = 1.0 + (self.damage_percent * 0.01)  # More damage = more knockback
+        scaled_knockback = [knockback_vector[0] * damage_multiplier / self.weight,
+                           knockback_vector[1] * damage_multiplier / self.weight]
+        self.velocity[0] += scaled_knockback[0]
+        self.velocity[1] += scaled_knockback[1]
         
-        # Enter hitstun
-        hitstun_duration = damage * 0.1  # Scale hitstun with damage
+        # Enter hitstun (also scales with damage)
+        hitstun_duration = (damage + self.damage_percent * 0.02) * 0.01
         self.hit_stun_timer = hitstun_duration
         self.can_act = False
         
@@ -380,9 +384,11 @@ class Character:
         self.screen_shake_intensity = damage * 0.5
         
         # Brief invincibility
-        self.invincibility_timer = 0.5
+        self.invincibility_timer = 0.3
         
         self.change_state(CharacterState.HIT_STUN)
+        
+        print(f"Player {self.player_id} took {damage} damage! Now at {self.damage_percent:.0f}%")
     
     def update_animations(self, delta_time):
         """
@@ -492,7 +498,7 @@ class Character:
     
     def get_collision_rect(self):
         """
-        Get collision rectangle for physics
+        Get the character's collision rectangle.
         """
         return pygame.Rect(
             self.position[0] - self.width // 2,
@@ -503,7 +509,7 @@ class Character:
     
     def is_on_ground(self):
         """
-        Check if character is on ground
+        Check if the character is on the ground
         """
         return self.on_ground
     
@@ -525,7 +531,7 @@ class Character:
         """
         return {
             "name": "Base Character",
-            "health": f"{self.current_health}/{self.max_health}",
+            "health": f"{self.damage_percent:.0f}%",
             "state": self.current_state.value,
             "on_ground": self.on_ground,
             "velocity": f"({self.velocity[0]:.1f}, {self.velocity[1]:.1f})"

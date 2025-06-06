@@ -120,6 +120,7 @@ class Stage:
         self.name = name
         self.width = width
         self.height = height
+        self.bounds = pygame.Rect(0, 0, width, height)
         
         # Stage boundaries (blast zones)
         self.left_blast_zone = -200
@@ -186,7 +187,16 @@ class Stage:
         - Return which blast zone was hit (left, right, top, bottom)
         - Used for determining KOs
         """
-        pass
+        x, y = character_position
+        if x < self.left_blast_zone:
+            return "left"
+        if x > self.right_blast_zone:
+            return "right"
+        if y < self.top_blast_zone:
+            return "top"
+        if y > self.bottom_blast_zone:
+            return "bottom"
+        return None
     
     def update(self, delta_time):
         """

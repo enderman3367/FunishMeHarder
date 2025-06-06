@@ -197,9 +197,10 @@ class PhysicsManager:
             # Apply ground friction
             character.velocity[0] *= (1.0 - self.ground_friction)
         
-        # Update position based on velocity
+        # Update position based on velocity (handle list format)
         old_position = character.position.copy()
-        character.position += character.velocity * delta_time
+        character.position[0] += character.velocity[0] * delta_time
+        character.position[1] += character.velocity[1] * delta_time
         
         # Check collisions with stage
         self.handle_stage_collision(character, stage, old_position)
@@ -214,56 +215,29 @@ class PhysicsManager:
         - Implement ledge detection
         - Handle blast zone detection
         """
+        character.on_ground = False
         character_rect = character.get_collision_rect()
-        
-        # For now, handle simple ground collision if stage is just bounds
+
+        # Check collision with each platform
         if hasattr(stage, 'platforms'):
-            # Check collision with each platform
             for platform in stage.platforms:
-                if self.check_platform_collision(character, platform, character_rect):
-                    self.resolve_platform_collision(character, platform, old_position)
-        
-        # Simple ground collision for basic setup
-        ground_level = 500  # Simple ground level
-        if character.position[1] > ground_level:
-            character.position[1] = ground_level
-            if character.velocity[1] > 0:
-                character.velocity[1] = 0
-                character.on_ground = True
-        
-        # Check blast zones (simple bounds checking)
-        if hasattr(stage, 'check_blast_zones'):
-            if stage.check_blast_zones(character.position):
-                # TODO: Handle character KO
-                pass
-        else:
-            # Simple boundary checking
-            if isinstance(stage, pygame.Rect):
-                # Keep character within basic bounds
-                if character.position[0] < 50:
-                    character.position[0] = 50
-                elif character.position[0] > stage.width - 50:
-                    character.position[0] = stage.width - 50
-    
-    def check_platform_collision(self, character, platform, character_rect):
-        """
-        Check if character is colliding with a platform
-        
-        TODO:
-        - Test rectangle collision
-        - Handle different platform types
-        - Consider character state (falling, rising, etc.)
-        """
-        platform_rect = platform.get_collision_rect()
-        
-        if character_rect.colliderect(platform_rect):
-            # TODO: More sophisticated collision detection
-            # - Check if character is falling onto platform
-            # - Handle pass-through platforms properly
-            # - Consider platform movement
-            return True
-        
-        return False
+                platform_rect = pygame.Rect(platform.x, platform.y, platform.width, platform.height)
+                # Character is falling and was previously above the platform
+                if character_rect.colliderect(platform_rect) and \
+                   character.velocity[1] >= 0 and \
+                   old_position[1] <= platform.y:
+                    
+                    # Land on platform
+                    character.position[1] = platform.y
+                    character.velocity[1] = 0
+                    character.on_ground = True
+                    break # Stop checking platforms after landing
+
+        # Check stage boundaries (left and right)
+        if character_rect.left < 0:
+            character.position[0] = character_rect.width / 2
+        elif character_rect.right > stage.bounds.width:
+            character.position[0] = stage.bounds.width - character_rect.width / 2
     
     def resolve_platform_collision(self, character, platform, old_position):
         """
@@ -274,10 +248,6 @@ class PhysicsManager:
         - Set appropriate flags (on_ground, etc.)
         - Handle platform-specific behaviors
         """
-        # TODO: Implement proper collision resolution
-        # - Separate character from platform
-        # - Set ground state if landing on top
-        # - Handle wall collisions
         pass
     
     def check_combat_collisions(self, characters):
@@ -285,7 +255,11 @@ class PhysicsManager:
         Check collisions between attack hitboxes and character hurtboxes
         """
         for attacker in characters:
+            hitboxes_to_remove = []
+            
             for hitbox in attacker.active_hitboxes:
+                hit_someone = False
+                
                 for defender in characters:
                     if defender == attacker:
                         continue  # Can't hit yourself
@@ -301,11 +275,48 @@ class PhysicsManager:
                     defender_rect = defender.get_collision_rect()
                     
                     if hitbox_rect.colliderect(defender_rect):
-                        self.apply_hit(hitbox, defender)
-                        # Remove hitbox after hitting to prevent multi-hits
-                        if hitbox in attacker.active_hitboxes:
-                            attacker.active_hitboxes.remove(hitbox)
-                        break
+                        # Handle multi-hit attacks differently
+                        is_multihit = hitbox.get('is_multihit', False)
+                        
+                        if is_multihit:
+                            # For multi-hit attacks, check if enough time has passed since last hit
+                            current_frame = attacker.attack_state_frames
+                            last_hit = hitbox.get('last_hit_frame', 0)
+                            hit_interval = hitbox.get('hit_interval', 4)
+                            
+                            if current_frame - last_hit >= hit_interval:
+                                self.apply_hit(hitbox, defender)
+                                hitbox['last_hit_frame'] = current_frame
+                                hit_someone = True
+                        else:
+                            # Regular attacks hit once then remove hitbox
+                            self.apply_hit(hitbox, defender)
+                            hit_someone = True
+                            # Mark for removal (but don't remove immediately to avoid iteration issues)
+                            if hitbox not in hitboxes_to_remove:
+                                hitboxes_to_remove.append(hitbox)
+                            break
+                
+                # Update projectiles
+                if hitbox.get('is_projectile', False):
+                    # Move projectile
+                    hitbox['x'] += hitbox.get('velocity_x', 0)
+                    hitbox['y'] += hitbox.get('velocity_y', 0)
+                    
+                    # Decrease lifetime
+                    hitbox['lifetime'] -= 1
+                    
+                    # Mark for removal if expired or off-screen
+                    if (hitbox['lifetime'] <= 0 or 
+                        hitbox['x'] < -100 or hitbox['x'] > 1380 or
+                        hitbox['y'] > 800):
+                        if hitbox not in hitboxes_to_remove:
+                            hitboxes_to_remove.append(hitbox)
+            
+            # Remove hitboxes that should be removed
+            for hitbox in hitboxes_to_remove:
+                if hitbox in attacker.active_hitboxes:
+                    attacker.active_hitboxes.remove(hitbox)
     
     def apply_hit(self, hitbox, target_character):
         """
@@ -331,7 +342,7 @@ class PhysicsManager:
         knockback_x = horizontal_direction * knockback_force * abs(math.cos(angle_rad))
         knockback_y = -knockback_force * math.sin(angle_rad)  # Negative because up is negative Y
         
-        knockback_vector = np.array([knockback_x, knockback_y])
+        knockback_vector = [knockback_x, knockback_y]
         
         # Apply damage and knockback
         target_character.take_damage(

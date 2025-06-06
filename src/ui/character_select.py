@@ -1,23 +1,20 @@
 """
-Character Select - Fighter Selection Interface
-==============================================
+Character Select - Two-Player Fighter Selection Interface
+=========================================================
 
 Character selection screen where both players choose their fighters.
 Features character portraits, stats display, and smooth selection animations.
 
 Features:
-- Two-player character selection
-- Character preview with stats
-- Special move descriptions
-- Character-specific animations
-- Ready confirmation system
+- Two-player simultaneous character selection
+- Red (Player 1) and Blue (Player 2) selection cursors
+- Character preview with stats and descriptions
+- Key hints for both players
+- Confirmation system before proceeding
 
-TODO:
-- Implement character grid navigation
-- Add character preview animations
-- Create smooth transition effects
-- Add character voice clips and sounds
-- Implement stage selection after character selection
+Controls:
+- Player 1: WASD to move cursor, Q to select/confirm
+- Player 2: IJKL to move cursor, U to select/confirm
 """
 
 import pygame
@@ -30,423 +27,357 @@ from enum import Enum
 class SelectionState(Enum):
     """
     Current state of character selection process
-    
-    TODO: Handle different phases of selection
     """
-    SELECTING_P1 = "selecting_p1"
-    SELECTING_P2 = "selecting_p2"
-    BOTH_READY = "both_ready"
+    SELECTING = "selecting"
+    BOTH_CONFIRMED = "both_confirmed"
     TRANSITIONING = "transitioning"
 
 class CharacterSelectState(GameState):
     """
-    Character selection game state
-    
-    TODO: Implement full character selection with two players
+    Two-player character selection screen
     """
     
     def __init__(self, state_manager):
         """
         Initialize character select screen
-        
-        TODO:
-        - Set up character roster
-        - Initialize selection cursors for both players
-        - Set up character preview areas
-        - Load character portraits and data
         """
         super().__init__(state_manager)
         
         # Available characters
-        self.character_classes = {
-            "Warrior": Warrior,
-            "Speedster": Speedster,
-            "Heavy": Heavy
-        }
-        self.character_names = list(self.character_classes.keys())
+        self.characters = [
+            {"name": "Warrior", "class": Warrior, "archetype": "Balanced", "difficulty": "Beginner"},
+            {"name": "Speedster", "class": Speedster, "archetype": "Rushdown", "difficulty": "Advanced"}, 
+            {"name": "Heavy", "class": Heavy, "archetype": "Grappler", "difficulty": "Intermediate"}
+        ]
         
         # Player selections
-        self.player1_selection = 0  # Index in character_names
-        self.player2_selection = 0
-        self.player1_confirmed = False
-        self.player2_confirmed = False
+        self.player1_cursor = 0  # Current cursor position
+        self.player2_cursor = 0
+        self.player1_selection = None  # Confirmed selection
+        self.player2_selection = None
         
         # Selection state
-        self.current_state = SelectionState.SELECTING_P1
+        self.current_state = SelectionState.SELECTING
         self.transition_timer = 0.0
         
-        # Visual elements
-        self.character_portraits = {}  # TODO: Load character portraits
-        self.character_data = {}       # Character stats and info
+        # Visual properties
+        self.character_box_width = 200
+        self.character_box_height = 250
+        self.character_spacing = 50
+        self.grid_start_x = 640 - (len(self.characters) * (self.character_box_width + self.character_spacing) - self.character_spacing) // 2
+        self.grid_y = 200
         
-        # Layout configuration
-        self.grid_columns = 3
-        self.grid_rows = 1
-        self.portrait_size = (150, 200)
-        self.portrait_spacing = 20
-        
-        # Colors and styling
-        self.background_color = (30, 30, 50)
-        self.p1_color = (100, 150, 255)  # Blue
-        self.p2_color = (255, 100, 100)  # Red
+        # Colors
+        self.player1_color = (255, 100, 100)  # Red
+        self.player2_color = (100, 150, 255)  # Blue
         self.confirmed_color = (100, 255, 100)  # Green
-        self.normal_color = (200, 200, 200)
+        self.background_color = (30, 30, 50)
         
-        # Fonts (TODO: Load actual fonts)
-        self.title_font = None
-        self.info_font = None
-        self.stat_font = None
+        # Fonts
+        self.title_font = pygame.font.Font(None, 64)
+        self.character_font = pygame.font.Font(None, 32)
+        self.info_font = pygame.font.Font(None, 24)
+        self.hint_font = pygame.font.Font(None, 20)
     
     def enter(self):
         """
         Called when entering character select
-        
-        TODO:
-        - Load character portraits and data
-        - Initialize selection state
-        - Start character select music
-        - Reset all selections
         """
         # Reset selections
-        self.player1_selection = 0
-        self.player2_selection = 0
-        self.player1_confirmed = False
-        self.player2_confirmed = False
-        self.current_state = SelectionState.SELECTING_P1
+        self.player1_cursor = 0
+        self.player2_cursor = 0
+        self.player1_selection = None
+        self.player2_selection = None
+        self.current_state = SelectionState.SELECTING
         
-        # Load character data
-        self.load_character_data()
-        
-        # TODO: Load fonts
-        # self.title_font = pygame.font.Font("assets/fonts/title.ttf", 48)
-        # self.info_font = pygame.font.Font("assets/fonts/info.ttf", 24)
-        # self.stat_font = pygame.font.Font("assets/fonts/stat.ttf", 18)
-        
-        # TODO: Start character select music
-        # pygame.mixer.music.load("assets/audio/character_select.ogg")
-        # pygame.mixer.music.play(-1)
+        print("Entering character select screen")
     
     def exit(self):
         """
         Called when leaving character select
-        
-        TODO:
-        - Store selected characters for gameplay
-        - Clean up resources
         """
-        # TODO: Store selections in game state for later use
-        pass
-    
-    def load_character_data(self):
-        """
-        Load character information for display
-        
-        TODO:
-        - Load character portraits
-        - Get character stats and descriptions
-        - Load character preview animations
-        """
-        for name, char_class in self.character_classes.items():
-            # Create temporary character to get stats
-            temp_char = char_class(0, 0, 1)
-            self.character_data[name] = temp_char.get_character_specific_stats()
-            
-            # TODO: Load character portrait
-            # self.character_portraits[name] = pygame.image.load(f"assets/images/portraits/{name.lower()}.png")
+        print("Exiting character select screen")
     
     def handle_event(self, event):
         """
         Handle character select input events
-        
-        TODO:
-        - Handle navigation for both players simultaneously
-        - Handle confirmation inputs
-        - Handle back/cancel inputs
-        - Support different input methods
         """
         if event.type == pygame.KEYDOWN:
-            # Player 1 controls (WASD + Q for confirm)
-            if not self.player1_confirmed:
-                if event.key == pygame.K_a:  # Left
-                    self.move_selection(1, -1)
-                elif event.key == pygame.K_d:  # Right
-                    self.move_selection(1, 1)
-                elif event.key == pygame.K_q:  # Confirm
-                    self.confirm_selection(1)
+            # Player 1 controls (WASD + Q)
+            if event.key == pygame.K_a:  # Left
+                if self.player1_selection is None:
+                    self.player1_cursor = (self.player1_cursor - 1) % len(self.characters)
+                    self.play_navigate_sound()
+            elif event.key == pygame.K_d:  # Right
+                if self.player1_selection is None:
+                    self.player1_cursor = (self.player1_cursor + 1) % len(self.characters)
+                    self.play_navigate_sound()
+            elif event.key == pygame.K_q:  # Confirm/Select
+                if self.player1_selection is None:
+                    self.player1_selection = self.player1_cursor
+                    self.play_confirm_sound()
+                    print(f"Player 1 selected {self.characters[self.player1_selection]['name']}")
+                    self.check_both_selected()
             
-            # Player 2 controls (IJKL + U for confirm)
-            if not self.player2_confirmed:
-                if event.key == pygame.K_j:  # Left
-                    self.move_selection(2, -1)
-                elif event.key == pygame.K_l:  # Right
-                    self.move_selection(2, 1)
-                elif event.key == pygame.K_u:  # Confirm
-                    self.confirm_selection(2)
+            # Player 2 controls (IJKL + U)
+            elif event.key == pygame.K_j:  # Left
+                if self.player2_selection is None:
+                    self.player2_cursor = (self.player2_cursor - 1) % len(self.characters)
+                    self.play_navigate_sound()
+            elif event.key == pygame.K_l:  # Right
+                if self.player2_selection is None:
+                    self.player2_cursor = (self.player2_cursor + 1) % len(self.characters)
+                    self.play_navigate_sound()
+            elif event.key == pygame.K_u:  # Confirm/Select
+                if self.player2_selection is None:
+                    self.player2_selection = self.player2_cursor
+                    self.play_confirm_sound()
+                    print(f"Player 2 selected {self.characters[self.player2_selection]['name']}")
+                    self.check_both_selected()
             
             # Global controls
-            if event.key == pygame.K_ESCAPE:
+            elif event.key == pygame.K_ESCAPE:
                 # Go back to main menu
                 self.state_manager.change_state(GameStateType.MAIN_MENU)
-                return True
-            
-            # If both confirmed, space/enter starts game
-            if (self.player1_confirmed and self.player2_confirmed and 
-                (event.key == pygame.K_SPACE or event.key == pygame.K_RETURN)):
-                self.start_game()
                 return True
         
         return False
     
-    def move_selection(self, player, direction):
+    def check_both_selected(self):
         """
-        Move character selection cursor
-        
-        TODO:
-        - Update selection index with wrapping
-        - Play navigation sound
-        - Update preview animations
+        Check if both players have selected and proceed
         """
-        if player == 1:
-            self.player1_selection = (self.player1_selection + direction) % len(self.character_names)
-        elif player == 2:
-            self.player2_selection = (self.player2_selection + direction) % len(self.character_names)
-        
-        # TODO: Play navigation sound
-        # self.play_sound("character_navigate.wav")
-        
-        # TODO: Update character preview
-        self.update_character_preview(player)
+        if self.player1_selection is not None and self.player2_selection is not None:
+            self.current_state = SelectionState.BOTH_CONFIRMED
+            self.transition_timer = 1.0  # 1 second delay before transition
+            print("Both players selected! Proceeding to stage select...")
     
-    def confirm_selection(self, player):
+    def play_navigate_sound(self):
         """
-        Confirm character selection for a player
-        
-        TODO:
-        - Set confirmation flag
-        - Play confirmation sound
-        - Start character animation
-        - Check if both players ready
+        Play navigation sound effect
         """
-        if player == 1:
-            self.player1_confirmed = True
-        elif player == 2:
-            self.player2_confirmed = True
-        
-        # TODO: Play confirmation sound
-        # self.play_sound("character_confirm.wav")
-        
-        # TODO: Start character celebration animation
-        
-        # Update state
-        if self.player1_confirmed and self.player2_confirmed:
-            self.current_state = SelectionState.BOTH_READY
-    
-    def update_character_preview(self, player):
-        """
-        Update character preview for the specified player
-        
-        TODO:
-        - Update character model/animation
-        - Update stats display
-        - Update move descriptions
-        """
-        # TODO: Update character preview animations
-        # TODO: Update information panels
+        # TODO: Add sound effect
         pass
     
-    def start_game(self):
+    def play_confirm_sound(self):
         """
-        Start the game with selected characters
-        
-        TODO:
-        - Store character selections
-        - Transition to stage select or directly to gameplay
-        - Play transition effects
+        Play confirmation sound effect
         """
-        # TODO: Store selections in global game state
-        selected_chars = {
-            "player1": self.character_names[self.player1_selection],
-            "player2": self.character_names[self.player2_selection]
-        }
-        
-        # TODO: Transition to stage select
-        self.state_manager.change_state(GameStateType.STAGE_SELECT)
+        # TODO: Add sound effect
+        pass
     
     def update(self, delta_time):
         """
-        Update character select animations and logic
-        
-        TODO:
-        - Update character preview animations
-        - Update UI animations
-        - Handle transition effects
+        Update character select logic
         """
-        self.transition_timer += delta_time
-        
-        # TODO: Update character animations
-        # TODO: Update UI effects
+        if self.current_state == SelectionState.BOTH_CONFIRMED:
+            self.transition_timer -= delta_time
+            if self.transition_timer <= 0:
+                # Store selections in state manager for later use
+                self.state_manager.selected_characters = {
+                    'player1': self.characters[self.player1_selection],
+                    'player2': self.characters[self.player2_selection]
+                }
+                # Proceed to stage select
+                self.state_manager.change_state(GameStateType.STAGE_SELECT)
     
     def render(self, screen):
         """
         Render the character select screen
-        
-        TODO:
-        - Render background
-        - Render character grid
-        - Render player selection cursors
-        - Render character information
-        - Render UI elements
         """
-        screen_width, screen_height = screen.get_size()
-        
-        # Clear screen
         screen.fill(self.background_color)
         
         # Render title
-        self.render_title(screen, screen_width)
+        title_text = self.title_font.render("SELECT YOUR FIGHTER", True, (255, 255, 255))
+        title_rect = title_text.get_rect(center=(640, 80))
+        screen.blit(title_text, title_rect)
         
-        # Render character grid
-        self.render_character_grid(screen, screen_width, screen_height)
+        # Render character boxes
+        for i, character in enumerate(self.characters):
+            self.render_character_box(screen, character, i)
         
-        # Render player information panels
-        self.render_player_panels(screen, screen_width, screen_height)
+        # Render player cursors
+        self.render_player_cursors(screen)
         
-        # Render instructions
-        self.render_instructions(screen, screen_width, screen_height)
+        # Render player info panels
+        self.render_player_panels(screen)
+        
+        # Render controls hints
+        self.render_control_hints(screen)
+        
+        # Render transition state
+        if self.current_state == SelectionState.BOTH_CONFIRMED:
+            self.render_transition_overlay(screen)
     
-    def render_title(self, screen, screen_width):
+    def render_character_box(self, screen, character, index):
         """
-        Render character select title
-        
-        TODO:
-        - Render "CHARACTER SELECT" title
-        - Add visual effects
+        Render individual character selection box
         """
-        # TODO: Render title with proper font
-        title_text = "CHARACTER SELECT"
-        # TODO: Center at top of screen
-    
-    def render_character_grid(self, screen, screen_width, screen_height):
-        """
-        Render the grid of character portraits
+        box_x = self.grid_start_x + index * (self.character_box_width + self.character_spacing)
+        box_y = self.grid_y
         
-        TODO:
-        - Render character portraits in grid layout
-        - Show selection cursors for both players
-        - Highlight confirmed selections
-        """
-        # Calculate grid layout
-        total_width = (self.portrait_size[0] + self.portrait_spacing) * self.grid_columns - self.portrait_spacing
-        start_x = (screen_width - total_width) // 2
-        start_y = 200
+        # Character box background
+        box_rect = pygame.Rect(box_x, box_y, self.character_box_width, self.character_box_height)
+        pygame.draw.rect(screen, (60, 60, 80), box_rect)
+        pygame.draw.rect(screen, (255, 255, 255), box_rect, 2)
         
-        for i, char_name in enumerate(self.character_names):
-            # Calculate position
-            col = i % self.grid_columns
-            row = i // self.grid_columns
-            
-            x = start_x + col * (self.portrait_size[0] + self.portrait_spacing)
-            y = start_y + row * (self.portrait_size[1] + self.portrait_spacing)
-            
-            # Render character portrait
-            self.render_character_portrait(screen, char_name, x, y, i)
-    
-    def render_character_portrait(self, screen, char_name, x, y, index):
-        """
-        Render a single character portrait with selection indicators
-        
-        TODO:
-        - Render character portrait image
-        - Show player selection cursors
-        - Show confirmation status
-        - Add character name
-        """
-        # Portrait background
-        portrait_rect = pygame.Rect(x, y, self.portrait_size[0], self.portrait_size[1])
-        pygame.draw.rect(screen, (60, 60, 80), portrait_rect)
-        
-        # TODO: Draw character portrait image
-        # if char_name in self.character_portraits:
-        #     screen.blit(self.character_portraits[char_name], (x, y))
-        
-        # Selection indicators
-        border_width = 3
-        
-        # Player 1 selection
-        if self.player1_selection == index:
-            color = self.confirmed_color if self.player1_confirmed else self.p1_color
-            pygame.draw.rect(screen, color, portrait_rect, border_width)
-        
-        # Player 2 selection
-        if self.player2_selection == index:
-            offset_rect = pygame.Rect(x + border_width, y + border_width, 
-                                    self.portrait_size[0] - 2*border_width, 
-                                    self.portrait_size[1] - 2*border_width)
-            color = self.confirmed_color if self.player2_confirmed else self.p2_color
-            pygame.draw.rect(screen, color, offset_rect, border_width)
+        # Character portrait placeholder (large colored rectangle)
+        portrait_rect = pygame.Rect(box_x + 25, box_y + 20, 150, 120)
+        character_colors = {
+            "Warrior": (200, 150, 100),
+            "Speedster": (255, 255, 100), 
+            "Heavy": (150, 100, 200)
+        }
+        portrait_color = character_colors.get(character["name"], (150, 150, 150))
+        pygame.draw.rect(screen, portrait_color, portrait_rect)
+        pygame.draw.rect(screen, (255, 255, 255), portrait_rect, 2)
         
         # Character name
-        # TODO: Render character name below portrait
+        name_text = self.character_font.render(character["name"], True, (255, 255, 255))
+        name_rect = name_text.get_rect(center=(box_x + self.character_box_width // 2, box_y + 160))
+        screen.blit(name_text, name_rect)
+        
+        # Character archetype
+        archetype_text = self.info_font.render(character["archetype"], True, (200, 200, 200))
+        archetype_rect = archetype_text.get_rect(center=(box_x + self.character_box_width // 2, box_y + 185))
+        screen.blit(archetype_text, archetype_rect)
+        
+        # Character difficulty
+        difficulty_text = self.info_font.render(f"Difficulty: {character['difficulty']}", True, (150, 150, 150))
+        difficulty_rect = difficulty_text.get_rect(center=(box_x + self.character_box_width // 2, box_y + 210))
+        screen.blit(difficulty_text, difficulty_rect)
     
-    def render_player_panels(self, screen, screen_width, screen_height):
+    def render_player_cursors(self, screen):
+        """
+        Render selection cursors for both players
+        """
+        # Player 1 cursor (Red)
+        if self.player1_selection is None:
+            p1_box_x = self.grid_start_x + self.player1_cursor * (self.character_box_width + self.character_spacing)
+            p1_cursor_rect = pygame.Rect(p1_box_x - 5, self.grid_y - 5, self.character_box_width + 10, self.character_box_height + 10)
+            pygame.draw.rect(screen, self.player1_color, p1_cursor_rect, 4)
+        else:
+            # Show confirmed selection
+            p1_box_x = self.grid_start_x + self.player1_selection * (self.character_box_width + self.character_spacing)
+            p1_cursor_rect = pygame.Rect(p1_box_x - 5, self.grid_y - 5, self.character_box_width + 10, self.character_box_height + 10)
+            pygame.draw.rect(screen, self.confirmed_color, p1_cursor_rect, 6)
+        
+        # Player 2 cursor (Blue)
+        if self.player2_selection is None:
+            p2_box_x = self.grid_start_x + self.player2_cursor * (self.character_box_width + self.character_spacing)
+            p2_cursor_rect = pygame.Rect(p2_box_x - 8, self.grid_y - 8, self.character_box_width + 16, self.character_box_height + 16)
+            pygame.draw.rect(screen, self.player2_color, p2_cursor_rect, 4)
+        else:
+            # Show confirmed selection  
+            p2_box_x = self.grid_start_x + self.player2_selection * (self.character_box_width + self.character_spacing)
+            p2_cursor_rect = pygame.Rect(p2_box_x - 8, self.grid_y - 8, self.character_box_width + 16, self.character_box_height + 16)
+            pygame.draw.rect(screen, self.confirmed_color, p2_cursor_rect, 6)
+    
+    def render_player_panels(self, screen):
         """
         Render information panels for both players
-        
-        TODO:
-        - Show selected character stats
-        - Show special move descriptions
-        - Show player status (selecting/confirmed)
         """
         # Player 1 panel (left side)
-        self.render_player_panel(screen, 1, 50, screen_height - 300)
+        self.render_player_panel(screen, 1, 50, 500, self.player1_cursor, self.player1_selection)
         
         # Player 2 panel (right side)
-        self.render_player_panel(screen, 2, screen_width - 350, screen_height - 300)
+        self.render_player_panel(screen, 2, 1280 - 350, 500, self.player2_cursor, self.player2_selection)
     
-    def render_player_panel(self, screen, player, x, y):
+    def render_player_panel(self, screen, player, x, y, cursor_pos, selection):
         """
         Render information panel for a specific player
-        
-        TODO:
-        - Show player number and status
-        - Display character stats
-        - Show special moves
-        - Add visual styling
         """
         # Panel background
-        panel_rect = pygame.Rect(x, y, 300, 250)
+        panel_rect = pygame.Rect(x, y, 300, 180)
         pygame.draw.rect(screen, (40, 40, 60), panel_rect)
+        pygame.draw.rect(screen, (255, 255, 255), panel_rect, 2)
         
-        # Get selected character
-        if player == 1:
-            char_name = self.character_names[self.player1_selection]
-            confirmed = self.player1_confirmed
-            color = self.p1_color
+        # Player title
+        color = self.player1_color if player == 1 else self.player2_color
+        if selection is not None:
+            color = self.confirmed_color
+            
+        title_text = self.character_font.render(f"Player {player}", True, color)
+        screen.blit(title_text, (x + 10, y + 10))
+        
+        # Status
+        if selection is not None:
+            status_text = self.info_font.render("READY!", True, self.confirmed_color)
+            character_name = self.characters[selection]['name']
+            selected_text = self.info_font.render(f"Selected: {character_name}", True, (255, 255, 255))
+            screen.blit(selected_text, (x + 10, y + 40))
         else:
-            char_name = self.character_names[self.player2_selection]
-            confirmed = self.player2_confirmed
-            color = self.p2_color
+            status_text = self.info_font.render("Selecting...", True, (200, 200, 200))
+            current_char = self.characters[cursor_pos]['name']
+            preview_text = self.info_font.render(f"Preview: {current_char}", True, (150, 150, 150))
+            screen.blit(preview_text, (x + 10, y + 40))
         
-        # TODO: Render player info
-        # - Player number
-        # - Character name
-        # - Character stats
-        # - Special moves
-        # - Confirmation status
+        screen.blit(status_text, (x + 10, y + 65))
+        
+        # Character stats preview
+        char_index = selection if selection is not None else cursor_pos
+        character = self.characters[char_index]
+        
+        stats_title = self.info_font.render("Stats:", True, (255, 255, 255))
+        screen.blit(stats_title, (x + 10, y + 95))
+        
+        # Mock stats based on character
+        if character['name'] == 'Warrior':
+            stats = ["Speed: ●●●○○", "Power: ●●●●○", "Defense: ●●●●○"]
+        elif character['name'] == 'Speedster':
+            stats = ["Speed: ●●●●●", "Power: ●●○○○", "Defense: ●●○○○"]
+        else:  # Heavy
+            stats = ["Speed: ●●○○○", "Power: ●●●●●", "Defense: ●●●●●"]
+        
+        for i, stat in enumerate(stats):
+            stat_text = self.hint_font.render(stat, True, (200, 200, 200))
+            screen.blit(stat_text, (x + 15, y + 115 + i * 18))
     
-    def render_instructions(self, screen, screen_width, screen_height):
+    def render_control_hints(self, screen):
         """
-        Render control instructions
-        
-        TODO:
-        - Show player controls
-        - Show current state instructions
-        - Add helpful tips
+        Render control hints for both players
         """
-        instructions_y = screen_height - 100
+        # Player 1 controls (left side)
+        p1_hints = [
+            "Player 1 Controls:",
+            "WASD - Move cursor",
+            "Q - Select/Confirm",
+            "ESC - Back to menu"
+        ]
         
-        # TODO: Render instructions
-        # "P1: A/D to select, Q to confirm"
-        # "P2: J/L to select, U to confirm"
-        # "ESC: Back to menu"
-        # "SPACE: Start game (when both ready)" 
+        for i, hint in enumerate(p1_hints):
+            color = self.player1_color if i == 0 else (180, 180, 180)
+            text = self.hint_font.render(hint, True, color)
+            screen.blit(text, (20, 20 + i * 22))
+        
+        # Player 2 controls (right side)
+        p2_hints = [
+            "Player 2 Controls:",
+            "IJKL - Move cursor", 
+            "U - Select/Confirm"
+        ]
+        
+        for i, hint in enumerate(p2_hints):
+            color = self.player2_color if i == 0 else (180, 180, 180)
+            text = self.hint_font.render(hint, True, color)
+            text_rect = text.get_rect()
+            screen.blit(text, (1280 - text_rect.width - 20, 20 + i * 22))
+    
+    def render_transition_overlay(self, screen):
+        """
+        Render transition overlay when both players are ready
+        """
+        overlay = pygame.Surface((1280, 720))
+        overlay.set_alpha(100)
+        overlay.fill((0, 0, 0))
+        screen.blit(overlay, (0, 0))
+        
+        # Ready message
+        ready_text = self.title_font.render("BOTH PLAYERS READY!", True, self.confirmed_color)
+        ready_rect = ready_text.get_rect(center=(640, 300))
+        screen.blit(ready_text, ready_rect)
+        
+        # Countdown or transition message
+        transition_text = self.character_font.render("Proceeding to stage select...", True, (255, 255, 255))
+        transition_rect = transition_text.get_rect(center=(640, 360))
+        screen.blit(transition_text, transition_rect) 
