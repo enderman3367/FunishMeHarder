@@ -241,7 +241,7 @@ python main.py
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under CC0 - see the [LICENSE](LICENSE) file for details.
 
 ## 🎮 Game Design Philosophy
 
@@ -256,5 +256,3 @@ This project aims to create a fighting game that captures the excitement and dep
 The codebase is designed as both a playable game and a learning resource, with extensive documentation and clear separation of concerns to make it easy for others to understand and contribute to fighting game development.
 
 ---
-
-**Ready to fight?** Install the dependencies and run `python main.py` to start your Super Smash Bros adventure! 🥊 
