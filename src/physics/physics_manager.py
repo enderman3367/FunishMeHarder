@@ -23,6 +23,7 @@ TODO:
 import pygame
 import numpy as np
 from enum import Enum
+import math
 
 class CollisionType(Enum):
     """
@@ -215,15 +216,34 @@ class PhysicsManager:
         """
         character_rect = character.get_collision_rect()
         
-        # Check collision with each platform
-        for platform in stage.platforms:
-            if self.check_platform_collision(character, platform, character_rect):
-                self.resolve_platform_collision(character, platform, old_position)
+        # For now, handle simple ground collision if stage is just bounds
+        if hasattr(stage, 'platforms'):
+            # Check collision with each platform
+            for platform in stage.platforms:
+                if self.check_platform_collision(character, platform, character_rect):
+                    self.resolve_platform_collision(character, platform, old_position)
         
-        # Check blast zones
-        if stage.check_blast_zones(character.position):
-            # TODO: Handle character KO
-            pass
+        # Simple ground collision for basic setup
+        ground_level = 500  # Simple ground level
+        if character.position[1] > ground_level:
+            character.position[1] = ground_level
+            if character.velocity[1] > 0:
+                character.velocity[1] = 0
+                character.on_ground = True
+        
+        # Check blast zones (simple bounds checking)
+        if hasattr(stage, 'check_blast_zones'):
+            if stage.check_blast_zones(character.position):
+                # TODO: Handle character KO
+                pass
+        else:
+            # Simple boundary checking
+            if isinstance(stage, pygame.Rect):
+                # Keep character within basic bounds
+                if character.position[0] < 50:
+                    character.position[0] = 50
+                elif character.position[0] > stage.width - 50:
+                    character.position[0] = stage.width - 50
     
     def check_platform_collision(self, character, platform, character_rect):
         """
@@ -263,64 +283,64 @@ class PhysicsManager:
     def check_combat_collisions(self, characters):
         """
         Check collisions between attack hitboxes and character hurtboxes
-        
-        TODO:
-        - Test all active hitboxes against all hurtboxes
-        - Handle hit detection and damage application
-        - Prevent multi-hits from same attack
-        - Apply knockback and hitstun
         """
-        for hitbox in self.active_hitboxes:
-            for character in characters:
-                if character == hitbox.owner:
-                    continue  # Can't hit yourself
-                
-                if character in hitbox.hit_targets:
-                    continue  # Already hit this character
-                
-                # Check collision
-                character_hurtboxes = character.get_hurtboxes()
-                for hurtbox in character_hurtboxes:
-                    if self.check_hitbox_collision(hitbox, hurtbox):
-                        self.apply_hit(hitbox, character)
-                        hitbox.hit_targets.add(character)
+        for attacker in characters:
+            for hitbox in attacker.active_hitboxes:
+                for defender in characters:
+                    if defender == attacker:
+                        continue  # Can't hit yourself
+                    
+                    # Check collision between hitbox and defender's hurtbox
+                    hitbox_rect = pygame.Rect(
+                        hitbox['x'] - hitbox['width'] // 2,
+                        hitbox['y'] - hitbox['height'] // 2,
+                        hitbox['width'],
+                        hitbox['height']
+                    )
+                    
+                    defender_rect = defender.get_collision_rect()
+                    
+                    if hitbox_rect.colliderect(defender_rect):
+                        self.apply_hit(hitbox, defender)
+                        # Remove hitbox after hitting to prevent multi-hits
+                        if hitbox in attacker.active_hitboxes:
+                            attacker.active_hitboxes.remove(hitbox)
                         break
-    
-    def check_hitbox_collision(self, hitbox, hurtbox):
-        """
-        Check collision between a hitbox and hurtbox
-        
-        TODO:
-        - Test rectangle collision
-        - Handle invincibility frames
-        - Consider attack properties
-        """
-        if not hitbox.is_active or not hurtbox.is_vulnerable:
-            return False
-        
-        return hitbox.get_rect().colliderect(hurtbox.get_rect())
     
     def apply_hit(self, hitbox, target_character):
         """
         Apply hit effects to target character
-        
-        TODO:
-        - Calculate damage and knockback
-        - Apply hitstun
-        - Trigger hit effects (sound, visual)
-        - Handle different attack types
         """
-        # Calculate knockback direction
-        knockback_direction = np.array([1.0, -0.5])  # TODO: Calculate based on attack
-        if target_character.position[0] < hitbox.owner.position[0]:
-            knockback_direction[0] = -1.0
+        # Calculate knockback direction based on attacker position and angle
+        attacker = hitbox['owner']
+        knockback_angle = hitbox['knockback_angle']
+        knockback_force = hitbox['knockback']
+        
+        # Calculate knockback vector
+        angle_rad = math.radians(knockback_angle)
+        
+        # Determine horizontal direction based on attacker position
+        if attacker.position[0] < target_character.position[0]:
+            # Attacker is on the left, knock right
+            horizontal_direction = 1
+        else:
+            # Attacker is on the right, knock left
+            horizontal_direction = -1
+        
+        # Calculate knockback components
+        knockback_x = horizontal_direction * knockback_force * abs(math.cos(angle_rad))
+        knockback_y = -knockback_force * math.sin(angle_rad)  # Negative because up is negative Y
+        
+        knockback_vector = np.array([knockback_x, knockback_y])
         
         # Apply damage and knockback
         target_character.take_damage(
-            hitbox.damage, 
-            knockback_direction * hitbox.knockback, 
-            hitbox.owner
+            hitbox['damage'], 
+            knockback_vector, 
+            attacker
         )
+        
+        print(f"Hit! {hitbox['damage']} damage, knockback: ({knockback_x:.1f}, {knockback_y:.1f})")  # Debug
     
     def add_hitbox(self, hitbox):
         """

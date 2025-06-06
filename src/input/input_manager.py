@@ -5,9 +5,21 @@ Input Manager - Player Input Handling System
 Handles all player input including keyboard controls for both players.
 Supports configurable key mappings and input buffering for fighting game mechanics.
 
-Player Controls:
-- Player 1: WASD (W=up/jump, A=left, S=down/crouch, D=right) + specials
-- Player 2: IKJL (I=up/jump, J=left, K=down/crouch, L=right) + specials
+Player Controls (Smash-style):
+- Player 1: WASD movement + Q for attack (direction + Q = different attacks)
+- Player 2: IJKL movement + U for attack (direction + U = different attacks)
+
+Attack Types:
+- No direction + Attack = Neutral attack
+- Side + Attack = Side attack
+- Up + Attack = Up attack  
+- Down + Attack = Down attack
+
+Key Features:
+- Input buffering for frame-perfect combo execution
+- "Just pressed" and "just released" detection
+- Smooth input handling for responsive movement
+- Directional attack detection like Smash Bros
 
 TODO:
 - Implement input buffering for combo execution
@@ -29,24 +41,15 @@ from enum import Enum
 class InputAction(Enum):
     """
     All possible input actions in the game
-    
-    TODO: Expand as needed for special moves and combos
     """
     # Movement
-    MOVE_LEFT = "move_left"
-    MOVE_RIGHT = "move_right"
-    JUMP = "jump"
-    CROUCH = "crouch"
+    MOVE_LEFT = "left"
+    MOVE_RIGHT = "right"
+    JUMP = "up"
+    CROUCH = "down"
     
-    # Basic attacks
-    LIGHT_ATTACK = "light_attack"
-    HEAVY_ATTACK = "heavy_attack"
-    
-    # Special moves
-    SIDE_SPECIAL = "side_special"
-    UP_SPECIAL = "up_special"
-    DOWN_SPECIAL = "down_special"
-    NEUTRAL_SPECIAL = "neutral_special"
+    # Attacks (Smash-style)
+    ATTACK = "attack"
     
     # System actions
     PAUSE = "pause"
@@ -54,180 +57,294 @@ class InputAction(Enum):
 
 class PlayerInput:
     """
-    Represents the current input state for a single player
-    
-    TODO: Add input history for combo detection and buffering
+    Represents the current input state for a single player with buffering
     """
     
     def __init__(self):
         """
-        Initialize player input state
-        
-        TODO:
-        - Initialize all input states to False
-        - Set up input buffer for frame-perfect inputs
-        - Initialize direction input (for analog stick simulation)
+        Initialize player input state with buffering system
         """
-        pass
+        # Current frame input states
+        self.current_inputs = {}
+        self.previous_inputs = {}
+        
+        # Initialize all inputs to False
+        for action in ['left', 'right', 'up', 'down', 'attack', 'grab']:
+            self.current_inputs[action] = False
+            self.previous_inputs[action] = False
+        
+        # Input buffer for frame-perfect inputs (stores last 6 frames)
+        self.input_buffer = []
+        self.buffer_size = 6
+        
+        # Direction input for analog-style movement
+        self.horizontal_axis = 0.0  # -1.0 to 1.0
+        self.vertical_axis = 0.0    # -1.0 to 1.0
     
-    def update(self, keys_pressed):
+    def update(self, key_states, key_mapping):
         """
         Update input state based on current key presses
-        
-        TODO:
-        - Update all input states
-        - Handle input buffering
-        - Detect input changes (pressed this frame, released this frame)
-        - Update input history for special move detection
         """
-        pass
+        # Store previous frame inputs
+        self.previous_inputs = self.current_inputs.copy()
+        
+        # Update current inputs based on key states
+        self.current_inputs['left'] = key_states[key_mapping['left']]
+        self.current_inputs['right'] = key_states[key_mapping['right']]
+        self.current_inputs['up'] = key_states[key_mapping['up']]
+        self.current_inputs['down'] = key_states[key_mapping['down']]
+        self.current_inputs['attack'] = key_states[key_mapping['attack']]
+        self.current_inputs['grab'] = key_states[key_mapping['grab']]
+        
+        # Update directional axes for smooth movement
+        self.horizontal_axis = 0.0
+        if self.current_inputs['left']:
+            self.horizontal_axis -= 1.0
+        if self.current_inputs['right']:
+            self.horizontal_axis += 1.0
+        
+        self.vertical_axis = 0.0
+        if self.current_inputs['up']:
+            self.vertical_axis -= 1.0
+        if self.current_inputs['down']:
+            self.vertical_axis += 1.0
+        
+        # Add current frame to input buffer
+        self.input_buffer.append(self.current_inputs.copy())
+        if len(self.input_buffer) > self.buffer_size:
+            self.input_buffer.pop(0)
     
     def is_pressed(self, action):
         """
         Check if an action is currently pressed
-        
-        TODO:
-        - Return current state of the action
         """
-        pass
+        return self.current_inputs.get(action, False)
     
     def was_just_pressed(self, action):
         """
-        Check if an action was pressed this frame
-        
-        TODO:
-        - Return True only on the frame the action was pressed
-        - Useful for preventing continuous actions
+        Check if an action was pressed this frame (rising edge)
         """
-        pass
+        current = self.current_inputs.get(action, False)
+        previous = self.previous_inputs.get(action, False)
+        return current and not previous
     
     def was_just_released(self, action):
         """
-        Check if an action was released this frame
-        
-        TODO:
-        - Return True only on the frame the action was released
+        Check if an action was released this frame (falling edge)
         """
-        pass
+        current = self.current_inputs.get(action, False)
+        previous = self.previous_inputs.get(action, False)
+        return not current and previous
+    
+    def get_attack_direction(self):
+        """
+        Get the direction for attack input (like Smash Bros)
+        Returns: 'neutral', 'side', 'up', 'down'
+        """
+        if self.is_pressed('up'):
+            return 'up'
+        elif self.is_pressed('down'):
+            return 'down'
+        elif self.is_pressed('left') or self.is_pressed('right'):
+            return 'side'
+        else:
+            return 'neutral'
+    
+    def was_pressed_in_buffer(self, action, frames_back=None):
+        """
+        Check if an action was pressed within the input buffer window
+        """
+        if frames_back is None:
+            frames_back = self.buffer_size
+        
+        frames_to_check = min(frames_back, len(self.input_buffer))
+        for i in range(frames_to_check):
+            frame_inputs = self.input_buffer[-(i+1)]
+            if frame_inputs.get(action, False):
+                return True
+        return False
+    
+    def get_horizontal_axis(self):
+        """
+        Get horizontal input as a float (-1.0 to 1.0)
+        """
+        return self.horizontal_axis
+    
+    def get_vertical_axis(self):
+        """
+        Get vertical input as a float (-1.0 to 1.0)
+        """
+        return self.vertical_axis
 
 class InputManager:
     """
     Manages input for all players and global game inputs
-    
-    TODO: Implement comprehensive input system with buffering and special move detection
     """
     
     def __init__(self):
         """
-        Initialize the input manager
-        
-        TODO:
-        - Set up default key mappings for both players
-        - Initialize player input objects
-        - Set up input buffer system
-        - Load key bindings from configuration
+        Initialize the input manager with Smash-style key mappings
         """
-        # Default key mappings
+        # Smash-style controls for Player 1
         self.player1_keys = {
-            # TODO: Map these to InputAction enum values
             'left': pygame.K_a,
             'right': pygame.K_d,
             'up': pygame.K_w,
             'down': pygame.K_s,
-            'light_attack': pygame.K_q,  # Additional keys for attacks
-            'heavy_attack': pygame.K_e,
-            'side_special': pygame.K_r,
-            'up_special': pygame.K_t,
-            'down_special': pygame.K_f,
-            'grab': pygame.K_g
+            'attack': pygame.K_q,      # One attack button
+            'grab': pygame.K_e
         }
         
+        # Smash-style controls for Player 2
         self.player2_keys = {
-            # TODO: Map these to InputAction enum values
             'left': pygame.K_j,
             'right': pygame.K_l,
             'up': pygame.K_i,
             'down': pygame.K_k,
-            'light_attack': pygame.K_u,  # Additional keys for attacks
-            'heavy_attack': pygame.K_o,
-            'side_special': pygame.K_p,
-            'up_special': pygame.K_LEFTBRACKET,
-            'down_special': pygame.K_SEMICOLON,
-            'grab': pygame.K_QUOTE
+            'attack': pygame.K_u,      # One attack button
+            'grab': pygame.K_o
         }
         
         # Global keys
         self.global_keys = {
             'pause': pygame.K_ESCAPE
         }
+        
+        # Player input objects
+        self.player1_input = PlayerInput()
+        self.player2_input = PlayerInput()
+        
+        # Current keyboard state
+        self.keys_pressed = pygame.key.get_pressed()
+        
+        # Global input states
+        self.pause_pressed = False
+        self.pause_just_pressed = False
     
     def handle_event(self, event):
         """
-        Handle pygame input events
-        
-        TODO:
-        - Process keydown/keyup events
-        - Handle controller input events
-        - Update input buffers
-        - Detect special move inputs
+        Handle pygame input events for immediate response actions
         """
-        pass
+        if event.type == pygame.KEYDOWN:
+            # Handle global pause
+            if event.key == self.global_keys['pause']:
+                self.pause_just_pressed = True
+        elif event.type == pygame.KEYUP:
+            if event.key == self.global_keys['pause']:
+                self.pause_just_pressed = False
     
     def update(self):
         """
         Update input system each frame
-        
-        TODO:
-        - Get current keyboard state
-        - Update both player inputs
-        - Process input buffers
-        - Clear "just pressed/released" flags from previous frame
         """
-        pass
+        # Get current keyboard state
+        self.keys_pressed = pygame.key.get_pressed()
+        
+        # Update global inputs
+        self.pause_pressed = self.keys_pressed[self.global_keys['pause']]
+        
+        # Update player inputs
+        self.player1_input.update(self.keys_pressed, self.player1_keys)
+        self.player2_input.update(self.keys_pressed, self.player2_keys)
     
     def get_player_input(self, player_id):
         """
         Get input state for a specific player (1 or 2)
-        
-        TODO:
-        - Return PlayerInput object for the specified player
-        - Validate player_id parameter
         """
-        pass
+        if player_id == 1:
+            return self.player1_input
+        elif player_id == 2:
+            return self.player2_input
+        else:
+            raise ValueError(f"Invalid player_id: {player_id}. Must be 1 or 2.")
+    
+    def is_pause_pressed(self):
+        """
+        Check if pause is currently pressed
+        """
+        return self.pause_pressed
+    
+    def was_pause_just_pressed(self):
+        """
+        Check if pause was just pressed this frame
+        """
+        return self.pause_just_pressed
     
     def configure_keys(self, player_id, key_mapping):
         """
         Configure key mappings for a player
-        
-        TODO:
-        - Update key mappings for specified player
-        - Validate that keys aren't already assigned
-        - Save configuration to file
         """
-        pass
+        if player_id == 1:
+            self.player1_keys.update(key_mapping)
+        elif player_id == 2:
+            self.player2_keys.update(key_mapping)
+        else:
+            raise ValueError(f"Invalid player_id: {player_id}. Must be 1 or 2.")
     
     def detect_special_move(self, player_id, move_pattern):
         """
-        Detect special move input patterns (like quarter circle + attack)
+        Detect special move input patterns (quarter circles, etc.)
         
-        TODO:
-        - Check input history for specific patterns
-        - Return True if pattern is detected within time window
-        - Handle different types of special moves:
-          - Quarter circle forward/back (236, 214)
-          - Half circle (63214 or 41236)
-          - Charge moves (hold back then forward)
-          - Dragon punch motion (623)
+        TODO: Implement complex motion detection
+        - Quarter circle forward (236): Down, Down-Forward, Forward + Attack
+        - Quarter circle back (214): Down, Down-Back, Back + Attack
+        - Dragon punch (623): Forward, Down, Down-Forward + Attack
+        - Half circle (63214 or 41236): complex motions
         """
-        pass
+        player_input = self.get_player_input(player_id)
+        
+        # For now, return simple detection
+        # This would be expanded with complex motion detection
+        if move_pattern == "quarter_circle_forward":
+            # Simplified: just check if down and forward were pressed recently
+            return (player_input.was_pressed_in_buffer('down', 4) and 
+                   player_input.was_pressed_in_buffer('right', 2))
+        elif move_pattern == "quarter_circle_back":
+            return (player_input.was_pressed_in_buffer('down', 4) and 
+                   player_input.was_pressed_in_buffer('left', 2))
+        
+        return False
     
     def get_input_display_string(self, player_id):
         """
         Get a string representation of current inputs (for debugging/training mode)
-        
-        TODO:
-        - Return string showing current inputs
-        - Useful for combo practice and debugging
-        - Format: "←→↓A" or similar notation
         """
-        pass 
+        player_input = self.get_player_input(player_id)
+        display = []
+        
+        if player_input.is_pressed('left'):
+            display.append('←')
+        if player_input.is_pressed('right'):
+            display.append('→')
+        if player_input.is_pressed('up'):
+            display.append('↑')
+        if player_input.is_pressed('down'):
+            display.append('↓')
+        
+        if player_input.is_pressed('attack'):
+            display.append('A')
+        if player_input.is_pressed('grab'):
+            display.append('G')
+        
+        return ''.join(display) if display else '·'
+    
+    def reset_player_input(self, player_id):
+        """
+        Reset a player's input state (useful for cutscenes, etc.)
+        """
+        if player_id == 1:
+            self.player1_input = PlayerInput()
+        elif player_id == 2:
+            self.player2_input = PlayerInput()
+    
+    def get_all_current_inputs(self):
+        """
+        Get all current input states for both players (useful for replay system)
+        """
+        return {
+            'player1': self.player1_input.current_inputs.copy(),
+            'player2': self.player2_input.current_inputs.copy(),
+            'global': {
+                'pause': self.pause_pressed
+            }
+        } 

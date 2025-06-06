@@ -2,46 +2,82 @@
 Super Smash Bros Game - Main Entry Point
 ========================================
 
-Main entry point for the game. This file should handle:
-- Game initialization
-- Main game loop
-- State management (menu, character select, gameplay)
-- Event handling coordination
-
-TODO:
-- Initialize pygame and set up display
-- Create game state manager
-- Handle transitions between game states
-- Set up main game loop with proper FPS control
-- Add error handling and graceful shutdown
-
-Libraries to consider:
-- pygame: Main game engine for graphics, input, and audio
-- pygame-ce: Community edition with additional features
-- numpy: For vector math and physics calculations
-- json: For save data and configuration files
+Main entry point for the game. This file handles:
+- Game initialization with pygame setup
+- Main game loop with fixed timestep physics
+- State management coordination
+- Event handling and input processing
+- Proper FPS control and performance monitoring
 """
 
-# TODO: Import necessary modules
-# import pygame
-# import sys
-# from src.core.game_engine import GameEngine
-# from src.core.state_manager import StateManager
-# from src.utils.config import Config
+import pygame
+import sys
+from src.core.game_engine import GameEngine
+from src.core.state_manager import StateManager
 
 def main():
     """
     Main function to initialize and run the game
-    
-    TODO:
-    - Initialize pygame
-    - Set up display window (1920x1080 or configurable)
-    - Create game engine instance
-    - Start main game loop
-    - Handle pygame events
-    - Manage game states (MENU, CHARACTER_SELECT, GAMEPLAY, PAUSE)
     """
-    pass
+    print("Starting Super Smash Fighters...")
+    
+    # Initialize pygame
+    pygame.init()
+    
+    # Set up display window
+    screen = pygame.display.set_mode(
+        (1280, 720),  # Fixed 720p resolution for consistent gameplay
+        pygame.SCALED
+    )
+    pygame.display.set_caption("Super Smash Fighters")
+    
+    # Create game engine and initialize all systems
+    game_engine = GameEngine()
+    game_engine.initialize()
+    
+    # Create state manager (this will set up the initial game state)
+    state_manager = StateManager(game_engine)
+    
+    # Set up clock for FPS control
+    clock = pygame.time.Clock()
+    target_fps = 60
+    
+    print("Game initialized successfully!")
+    print("Controls:")
+    print("Player 1: WASD to move, Q+direction for attacks")
+    print("Player 2: IJKL to move, U+direction for attacks")
+    print("Attack Types: No direction=Neutral, Side=Strong, Up=Launcher, Down=Spike")
+    print("F3=Debug Mode, R=Reset Match, ESC=Menu")
+    
+    # Main game loop
+    running = True
+    while running:
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            
+            # Pass events to game engine (which forwards to current state)
+            game_engine.handle_event(event)
+        
+        # Calculate delta time for smooth animations
+        delta_time = clock.tick(target_fps) / 1000.0  # Convert to seconds
+        
+        # Update game engine (uses fixed timestep internally)
+        game_engine.update(delta_time)
+        
+        # Clear screen and render
+        screen.fill((0, 0, 0))  # Clear with black
+        game_engine.render(screen)
+        
+        # Present the frame
+        pygame.display.flip()
+    
+    # Clean shutdown
+    print("Shutting down...")
+    game_engine.shutdown()
+    pygame.quit()
+    sys.exit()
 
 if __name__ == "__main__":
     main()
