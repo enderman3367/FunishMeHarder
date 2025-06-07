@@ -72,22 +72,21 @@ class Platform:
         """
         Update platform logic
         
-        TODO:
-        - Handle moving platform behavior
-        - Update breakable platform state
-        - Handle temporary platform timers
+        Args:
+            delta_time (float): Time in seconds since last update
         """
+        # For now, platforms are static
+        # This method will be expanded for moving platforms, breakable platforms, etc.
         pass
     
     def get_collision_rect(self):
         """
         Get collision rectangle for this platform
         
-        TODO:
-        - Return pygame Rect for collision detection
-        - Handle different collision types (top-only, full, etc.)
+        Returns:
+            pygame.Rect: Rectangle representing the platform's collision area
         """
-        pass
+        return pygame.Rect(self.x, self.y, self.width, self.height)
     
     def render(self, screen, camera_offset):
         """
@@ -120,7 +119,6 @@ class Stage:
         self.name = name
         self.width = width
         self.height = height
-        self.bounds = pygame.Rect(0, 0, width, height)
         
         # Stage boundaries (blast zones)
         self.left_blast_zone = -200
@@ -159,12 +157,12 @@ class Stage:
         """
         Add a spawn point for players
         
-        TODO:
-        - Add spawn coordinates to list
-        - Validate spawn point is on solid ground
-        - Ensure spawn points don't overlap
+        Args:
+            x (float): X coordinate of spawn point
+            y (float): Y coordinate of spawn point
         """
-        pass
+        self.spawn_points.append((x, y))
+        print(f"✓ Added spawn point at ({x}, {y})")
     
     def check_collision(self, character_rect, character_velocity):
         """
@@ -187,16 +185,7 @@ class Stage:
         - Return which blast zone was hit (left, right, top, bottom)
         - Used for determining KOs
         """
-        x, y = character_position
-        if x < self.left_blast_zone:
-            return "left"
-        if x > self.right_blast_zone:
-            return "right"
-        if y < self.top_blast_zone:
-            return "top"
-        if y > self.bottom_blast_zone:
-            return "bottom"
-        return None
+        pass
     
     def update(self, delta_time):
         """

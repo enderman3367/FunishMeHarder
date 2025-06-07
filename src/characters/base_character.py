@@ -61,13 +61,13 @@ class Character:
         self.acceleration = np.array([0.0, 0.0])
         self.facing_right = True if player_id == 1 else False
         
-        # Movement physics constants for smooth gameplay
-        self.max_walk_speed = 3.0
-        self.max_run_speed = 6.0
-        self.ground_acceleration = 0.4  # How quickly we reach max speed
-        self.ground_deceleration = 0.6  # How quickly we stop
-        self.air_acceleration = 0.2     # Slower air control
-        self.air_deceleration = 0.1     # Maintain momentum in air
+        # Movement physics constants for smooth gameplay (BOOSTED FOR TESTING)
+        self.max_walk_speed = 8.0       # Increased from 3.0
+        self.max_run_speed = 12.0       # Increased from 6.0  
+        self.ground_acceleration = 1.2  # Increased from 0.4 - How quickly we reach max speed
+        self.ground_deceleration = 1.8  # Increased from 0.6 - How quickly we stop
+        self.air_acceleration = 0.6     # Increased from 0.2 - Slower air control
+        self.air_deceleration = 0.3     # Increased from 0.1 - Maintain momentum in air
         self.jump_strength = 15.0
         self.short_hop_strength = 8.0   # For light jump inputs
         
@@ -111,6 +111,11 @@ class Character:
         self.hit_flash_timer = 0.0
         self.screen_shake_intensity = 0.0
         
+        # KO and respawn system
+        self.is_ko = False
+        self.ko_direction = None
+        self.respawn_invincibility = 0
+        
         self.player_id = player_id
         
         # Size for collision (will be overridden by sprites later)
@@ -126,6 +131,7 @@ class Character:
         self.hit_stun_timer = max(0, self.hit_stun_timer - delta_time)
         self.invincibility_timer = max(0, self.invincibility_timer - delta_time)
         self.coyote_time = max(0, self.coyote_time - delta_time)
+        self.respawn_invincibility = max(0, self.respawn_invincibility - 1)  # Frame-based timer
         
         # Update visual effects
         self.hit_flash_timer = max(0, self.hit_flash_timer - delta_time)
@@ -153,28 +159,38 @@ class Character:
         """
         Process player input with smooth movement and Smash-style attacks
         """
+        print(f"🎮 Input P{self.player_id}: Processing input, on_ground={self.on_ground}")
+        
         # Movement input with smooth acceleration
         horizontal_input = 0.0
         if player_input.is_pressed('left'):
             horizontal_input -= 1.0
             if self.facing_right:
                 self.facing_right = False
+            print(f"   ⬅️ Left input: {horizontal_input}")
         if player_input.is_pressed('right'):
             horizontal_input += 1.0
             if not self.facing_right:
                 self.facing_right = True
+            print(f"   ➡️ Right input: {horizontal_input}")
+        
+        print(f"   🏃 Total horizontal input: {horizontal_input}, facing_right: {self.facing_right}")
         
         # Apply movement based on ground state
         if self.on_ground:
+            print(f"   🌍 Applying ground movement")
             self.apply_ground_movement(horizontal_input)
         else:
+            print(f"   🌊 Applying air movement")
             self.apply_air_movement(horizontal_input)
         
         # Jumping with coyote time and short hops
         if player_input.was_just_pressed('up'):
+            print(f"   🚀 Jump input detected")
             if self.on_ground or self.coyote_time > 0:
                 # Short hop if released quickly, full jump if held
                 jump_power = self.short_hop_strength if not player_input.is_pressed('up') else self.jump_strength
+                print(f"   🚀 Jumping with power: {jump_power}")
                 self.velocity[1] = -jump_power
                 self.on_ground = False
                 self.can_jump = False
@@ -183,45 +199,65 @@ class Character:
         
         # Variable jump height - cut jump short if button released
         if not player_input.is_pressed('up') and self.velocity[1] < 0 and self.current_state == CharacterState.JUMPING:
+            print(f"   ✂️ Cutting jump short")
             self.velocity[1] *= 0.5  # Cut jump height
         
         # Crouching
         if player_input.is_pressed('down') and self.on_ground:
             if self.current_state != CharacterState.CROUCHING:
+                print(f"   ⬇️ Entering crouch")
                 self.change_state(CharacterState.CROUCHING)
         elif self.current_state == CharacterState.CROUCHING:
+            print(f"   ⬆️ Exiting crouch")
             self.change_state(CharacterState.IDLE)
         
         # Smash-style attack system (one button + direction)
         if player_input.was_just_pressed('attack'):
             attack_direction = player_input.get_attack_direction()
+            print(f"   ⚔️ Attack input: {attack_direction}")
             self.perform_attack(attack_direction)
     
     def apply_ground_movement(self, horizontal_input):
         """
         Apply smooth ground movement with acceleration/deceleration
         """
+        print(f"   🚶 Ground movement P{self.player_id}: input={horizontal_input}, vel_x={self.velocity[0]:.2f}")
+        print(f"      MAX SPEEDS: walk={self.max_walk_speed}, run={self.max_run_speed}")
+        print(f"      ACCELERATIONS: ground={self.ground_acceleration}, decel={self.ground_deceleration}")
+        
         if horizontal_input != 0:
             # Accelerate towards max speed
             target_speed = horizontal_input * self.max_walk_speed
+            print(f"      🎯 Target walk speed: {target_speed}")
+            
             # Use different speed for running (holding direction for extended time)
             if abs(self.velocity[0]) > self.max_walk_speed * 0.8 and horizontal_input * self.velocity[0] > 0:
                 target_speed = horizontal_input * self.max_run_speed
+                print(f"      🏃 Target run speed: {target_speed}")
             
             # Smooth acceleration
             speed_diff = target_speed - self.velocity[0]
             acceleration = self.ground_acceleration if abs(speed_diff) > 0.1 else self.ground_deceleration
+            old_vel = self.velocity[0]
             self.velocity[0] += np.sign(speed_diff) * min(abs(speed_diff), acceleration)
+            
+            print(f"      📈 Speed diff: {speed_diff:.2f}, accel: {acceleration:.2f}, vel: {old_vel:.2f} -> {self.velocity[0]:.2f}")
+            print(f"      📊 ABS VELOCITY: {abs(self.velocity[0])}")
             
             # Update movement state
             if abs(self.velocity[0]) > self.max_walk_speed * 1.2:
+                print(f"      🏃 CHANGING TO RUNNING")
                 self.change_state(CharacterState.RUNNING)
             elif abs(self.velocity[0]) > 0.5:
+                print(f"      🚶 CHANGING TO WALKING")
                 self.change_state(CharacterState.WALKING)
         else:
+            print(f"      ⏸️ No input - decelerating")
             # Smooth deceleration when no input
             if abs(self.velocity[0]) > 0.1:
+                old_vel = self.velocity[0]
                 self.velocity[0] *= (1.0 - self.ground_deceleration)
+                print(f"      📉 Decel: {old_vel:.2f} -> {self.velocity[0]:.2f}")
             else:
                 self.velocity[0] = 0
                 if self.current_state in [CharacterState.WALKING, CharacterState.RUNNING]:
@@ -244,33 +280,26 @@ class Character:
     
     def update_physics(self, delta_time):
         """
-        Update character physics with gravity and collision
+        Update character physics - position updates are now handled by physics manager
+        NOTE: Gravity and collision are now handled by the physics manager and stage system
         """
-        # Apply gravity when in air
-        if not self.on_ground:
-            gravity = 0.8 * self.weight  # Heavier characters fall faster
-            self.velocity[1] += gravity
-            # Terminal velocity
-            if self.velocity[1] > 20.0:
-                self.velocity[1] = 20.0
+        print(f"📍 Character P{self.player_id} internal physics: on_ground={self.on_ground}, state={self.current_state}")
         
-        # Update position
-        old_position = self.position.copy()
-        self.position[0] += self.velocity[0] * 60.0 * delta_time  # 60fps normalization
-        self.position[1] += self.velocity[1] * 60.0 * delta_time
+        # The physics manager now handles all position updates and gravity
+        # This method is kept for any character-specific physics that don't involve position
         
-        # Basic ground collision (will be replaced with proper stage collision)
-        if self.position[1] > 500:  # Ground level
-            self.position[1] = 500
-            if not self.on_ground and self.velocity[1] > 0:
-                self.on_ground = True
-                self.can_jump = True
-                self.velocity[1] = 0
-                self.change_state(CharacterState.LANDING)
-        else:
-            if self.on_ground and self.velocity[1] != 0:
-                self.on_ground = False
-                self.coyote_time = self.coyote_time_max
+        # Update coyote time for more forgiving jumping
+        if not self.on_ground and self.coyote_time > 0:
+            self.coyote_time -= delta_time
+            if self.coyote_time <= 0:
+                self.coyote_time = 0
+                print(f"   ⏰ P{self.player_id} coyote time expired")
+        
+        # Handle landing state if character is now on ground
+        if self.on_ground and self.current_state == CharacterState.FALLING:
+            print(f"   🛬 P{self.player_id} landing from fall")
+            self.change_state(CharacterState.LANDING)
+            self.can_jump = True
     
     def change_state(self, new_state):
         """
@@ -361,8 +390,8 @@ class Character:
         """
         Handle taking damage with Smash Bros style percentage and scaling knockback
         """
-        if self.invincibility_timer > 0:
-            return  # Invincible
+        if self.invincibility_timer > 0 or self.respawn_invincibility > 0:
+            return  # Invincible (either hit invincibility or respawn invincibility)
         
         # Apply damage (increase percentage)
         self.damage_percent += damage
@@ -498,7 +527,7 @@ class Character:
     
     def get_collision_rect(self):
         """
-        Get the character's collision rectangle.
+        Get collision rectangle for physics
         """
         return pygame.Rect(
             self.position[0] - self.width // 2,
@@ -509,7 +538,7 @@ class Character:
     
     def is_on_ground(self):
         """
-        Check if the character is on the ground
+        Check if character is on ground
         """
         return self.on_ground
     
