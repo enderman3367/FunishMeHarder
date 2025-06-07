@@ -1,5 +1,5 @@
 """
-Super Smash Bros Game - Main Entry Point
+Brawl Bros Game - Main Entry Point
 ========================================
 
 Main entry point for the game. This file handles:
