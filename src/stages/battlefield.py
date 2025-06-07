@@ -528,8 +528,15 @@ class Battlefield(Stage):
         """
         Apply Battlefield-specific gravity effects to characters
         
-        This method allows the stage to modify how gravity affects characters,
-        creating unique gameplay feel while maintaining competitive balance.
+        === BATTLEFIELD PHYSICS PHILOSOPHY ===
+        Battlefield is designed as the "baseline" competitive stage with standard gravity.
+        All physics values are balanced for competitive play:
+        - Standard 1.0x gravity multiplier (no modifications)
+        - Consistent platform physics across all areas
+        - Predictable aerial behavior for combo consistency
+        
+        This stage serves as the reference point for balancing other stages.
+        All custom stages should be compared against Battlefield's feel.
         
         Args:
             character: The character object to apply gravity to

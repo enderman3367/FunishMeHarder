@@ -705,12 +705,22 @@ class Plains(Stage):
         """
         Apply Plains-specific gravity effects to characters
         
-        Plains Gravity Philosophy:
-        =========================
-        - Enhanced gravity keeps players grounded longer
-        - Increased air friction makes aerial movement more committal
-        - Wind resistance affects horizontal air movement slightly
+        === PLAINS PHYSICS PHILOSOPHY ===
+        Plains is designed as the "ground-focused" alternative to Battlefield.
+        While Battlefield emphasizes aerial combat, Plains rewards ground game:
+        
+        Key Differences from Battlefield:
+        - Enhanced gravity (1.15x multiplier vs 1.0x) keeps players grounded longer
+        - Reduced terminal velocity (16.0 vs 18.0) for more controlled falls
+        - Increased air friction (1.3x vs 0.8x) makes aerial movement more committal
+        - Wind resistance affects horizontal air movement
         - Different terrain zones provide subtle movement variations
+        
+        Gameplay Impact:
+        - Shorter combos due to faster falling
+        - More emphasis on ground-based neutral game
+        - Air approaches are riskier and more committal
+        - Favors characters with strong ground options
         
         This creates a heavier, more deliberate feel that emphasizes
         ground-based combat and precise spacing over aerial mixups.

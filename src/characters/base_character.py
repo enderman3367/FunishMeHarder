@@ -49,6 +49,26 @@ class CharacterState(Enum):
 class Character:
     """
     Base class for all playable characters with smooth movement physics
+    
+    === COMPLETED SYSTEMS ===
+    ✅ Movement physics with acceleration/deceleration (FIXED slow movement bug)
+    ✅ Ground and air state management (FIXED stuck in midair bug)
+    ✅ Jumping with coyote time and variable height
+    ✅ Basic attack framework with frame data and hitbox creation
+    ✅ Damage percentage system with knockback scaling (Smash Bros style)
+    ✅ State machine for animations and behavior transitions
+    ✅ Comprehensive debug output for troubleshooting physics issues
+    ✅ KO and respawn system integration
+    
+    === TODO SYSTEMS ===
+    - Complete attack hitbox/hurtbox collision detection with other players
+    - Character-specific moves and stats (different character classes)
+    - Advanced techniques (wavedashing, L-canceling, DI, etc.)
+    - Grab system implementation (throw combos)
+    - Shield/blocking mechanics with shield break
+    - Multiple character classes with unique abilities and movesets
+    - Sprite-based rendering system (currently using colored rectangles)
+    - Sound effect integration for movement and attacks
     """
     
     def __init__(self, x, y, player_id):
@@ -61,13 +81,20 @@ class Character:
         self.acceleration = np.array([0.0, 0.0])
         self.facing_right = True if player_id == 1 else False
         
-        # Movement physics constants for smooth gameplay (BOOSTED FOR TESTING)
-        self.max_walk_speed = 8.0       # Increased from 3.0
-        self.max_run_speed = 12.0       # Increased from 6.0  
-        self.ground_acceleration = 1.2  # Increased from 0.4 - How quickly we reach max speed
-        self.ground_deceleration = 1.8  # Increased from 0.6 - How quickly we stop
-        self.air_acceleration = 0.6     # Increased from 0.2 - Slower air control
-        self.air_deceleration = 0.3     # Increased from 0.1 - Maintain momentum in air
+        # === MOVEMENT PHYSICS CONSTANTS ===
+        # These values were tuned to fix the "extremely slow movement" bug
+        # Original values were too small (walk=3.0, run=6.0, accel=0.4)
+        # The debug system revealed input was working but movement was imperceptible
+        
+        self.max_walk_speed = 8.0       # Base walking speed (increased from 3.0 for visibility)
+        self.max_run_speed = 12.0       # Running speed when holding direction (increased from 6.0)  
+        self.ground_acceleration = 1.2  # How quickly we reach max speed (increased from 0.4)
+        self.ground_deceleration = 1.8  # How quickly we stop when no input (increased from 0.6)
+        self.air_acceleration = 0.6     # Air control strength (increased from 0.2)
+        self.air_deceleration = 0.3     # Air momentum preservation (increased from 0.1)
+        
+        # NOTE: These speeds work with the 60fps normalization in physics_manager.py
+        # Movement formula: velocity * 60 * delta_time = pixels_per_frame
         self.jump_strength = 15.0
         self.short_hop_strength = 8.0   # For light jump inputs
         
@@ -220,22 +247,35 @@ class Character:
     def apply_ground_movement(self, horizontal_input):
         """
         Apply smooth ground movement with acceleration/deceleration
+        
+        === DEBUG SYSTEM EXPLANATION ===
+        This method was heavily debugged to fix the "extremely slow movement" issue.
+        The extensive print statements help track:
+        1. Input values (horizontal_input)
+        2. Current velocity and target speeds  
+        3. Acceleration calculations and state changes
+        4. Whether characters properly transition between idle/walking/running
+        
+        The debug output revealed that input was working but movement speeds were too small.
         """
         print(f"   🚶 Ground movement P{self.player_id}: input={horizontal_input}, vel_x={self.velocity[0]:.2f}")
         print(f"      MAX SPEEDS: walk={self.max_walk_speed}, run={self.max_run_speed}")
         print(f"      ACCELERATIONS: ground={self.ground_acceleration}, decel={self.ground_deceleration}")
         
         if horizontal_input != 0:
-            # Accelerate towards max speed
+            # === MOVEMENT WITH INPUT ===
+            # Calculate target speed based on input direction (-1 for left, +1 for right)
             target_speed = horizontal_input * self.max_walk_speed
             print(f"      🎯 Target walk speed: {target_speed}")
             
-            # Use different speed for running (holding direction for extended time)
+            # === RUNNING SYSTEM ===
+            # Upgrade to running speed if already moving fast in same direction
             if abs(self.velocity[0]) > self.max_walk_speed * 0.8 and horizontal_input * self.velocity[0] > 0:
                 target_speed = horizontal_input * self.max_run_speed
                 print(f"      🏃 Target run speed: {target_speed}")
             
-            # Smooth acceleration
+            # === SMOOTH ACCELERATION ===
+            # Gradually change velocity towards target instead of instant changes
             speed_diff = target_speed - self.velocity[0]
             acceleration = self.ground_acceleration if abs(speed_diff) > 0.1 else self.ground_deceleration
             old_vel = self.velocity[0]
@@ -244,7 +284,8 @@ class Character:
             print(f"      📈 Speed diff: {speed_diff:.2f}, accel: {acceleration:.2f}, vel: {old_vel:.2f} -> {self.velocity[0]:.2f}")
             print(f"      📊 ABS VELOCITY: {abs(self.velocity[0])}")
             
-            # Update movement state
+            # === ANIMATION STATE UPDATES ===
+            # Change visual state based on movement speed
             if abs(self.velocity[0]) > self.max_walk_speed * 1.2:
                 print(f"      🏃 CHANGING TO RUNNING")
                 self.change_state(CharacterState.RUNNING)
@@ -252,13 +293,15 @@ class Character:
                 print(f"      🚶 CHANGING TO WALKING")
                 self.change_state(CharacterState.WALKING)
         else:
+            # === NO INPUT - DECELERATION ===
             print(f"      ⏸️ No input - decelerating")
-            # Smooth deceleration when no input
+            # Gradually slow down when no input (creates smooth stopping)
             if abs(self.velocity[0]) > 0.1:
                 old_vel = self.velocity[0]
                 self.velocity[0] *= (1.0 - self.ground_deceleration)
                 print(f"      📉 Decel: {old_vel:.2f} -> {self.velocity[0]:.2f}")
             else:
+                # Stop completely when velocity is very small
                 self.velocity[0] = 0
                 if self.current_state in [CharacterState.WALKING, CharacterState.RUNNING]:
                     self.change_state(CharacterState.IDLE)

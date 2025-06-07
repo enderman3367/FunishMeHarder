@@ -128,17 +128,33 @@ class PhysicsManager:
     """
     Main physics manager for the game
     
-    TODO: Implement comprehensive physics system
+    COMPLETED:
+    ✅ Character-stage collision detection (Battlefield, Plains)
+    ✅ Platform landing and ground state management  
+    ✅ Blast zone system for KOs
+    ✅ Stage-specific gravity integration
+    ✅ 60fps normalized movement system
+    ✅ Comprehensive debug output system
+    
+    TODO:
+    - Combat collision system (hitbox vs hurtbox)
+    - Advanced physics effects (wind, platform moving)
+    - Spatial partitioning for performance optimization
+    - Wall collision and ledge grabbing
     """
     
     def __init__(self):
         """
         Initialize the physics manager
         
+        COMPLETED:
+        ✅ Physics constants setup
+        ✅ Basic collision detection systems
+        ✅ Character physics integration
+        
         TODO:
-        - Set up physics constants
-        - Initialize collision detection systems
-        - Set up spatial partitioning for performance
+        - Set up spatial partitioning for performance (not needed yet with 2 players)
+        - Advanced combat collision structures
         """
         # Physics constants
         self.gravity = 0.8  # Pixels per frame squared
@@ -157,39 +173,54 @@ class PhysicsManager:
         """
         Update all physics simulation
         
+        COMPLETED:
+        ✅ Character physics updates with 60fps normalization
+        ✅ Character-stage collision detection 
+        ✅ Stage-specific gravity application
+        ✅ Blast zone checking and KO system
+        
         TODO:
-        - Update character physics
-        - Handle collisions between characters and stage
-        - Process hitbox vs hurtbox collisions
-        - Apply gravity and friction
+        - Complete hitbox vs hurtbox collision system
+        - Add environmental physics (moving platforms, wind)
+        - Performance optimization for larger character counts
         """
-        # Update character physics
+        # === CHARACTER PHYSICS (COMPLETED) ===
+        # Update each character's movement, gravity, and stage collision
         for character in characters:
             self.update_character_physics(character, delta_time, stage)
         
-        # Check combat collisions
+        # === COMBAT SYSTEM (TODO: IMPLEMENT) ===
+        # Check for attack collisions between characters
         self.check_combat_collisions(characters)
         
-        # Update hitboxes and hurtboxes
+        # === HITBOX MANAGEMENT (TODO: IMPLEMENT) ===  
+        # Update active attack hitboxes and timers
         self.update_hitboxes()
     
     def update_character_physics(self, character, delta_time, stage):
         """
         Update physics for a single character with stage-specific modifications
         
+        === MAJOR BUG FIXES IMPLEMENTED ===
+        1. FIXED "Characters stuck in midair" - Proper collision detection now works
+        2. FIXED "Extremely slow movement" - Added 60fps normalization to position updates
+        3. FIXED "Players can't fall off stages" - Proper blast zone system implemented
+        4. ADDED comprehensive debug system to track all physics calculations
+        
         This method now integrates with stage-specific gravity and physics systems
         to create unique gameplay experiences on different stages.
         
         Physics Integration:
         ===================
-        - Checks if stage has custom gravity methods
+        - Checks if stage has custom gravity methods (Battlefield, Plains)
         - Falls back to standard physics if stage doesn't override
         - Maintains consistent base physics while allowing stage customization
         - Ensures competitive balance across all stages
+        - Uses 60fps normalization: movement = velocity * 60 * delta_time
         
         Args:
             character: Character object to update physics for
-            delta_time (float): Time in seconds since last frame
+            delta_time (float): Time in seconds since last frame (should be ~0.0167 for 60fps)
             stage: Stage object that may have custom physics methods
         """
         
@@ -222,17 +253,26 @@ class PhysicsManager:
                 character.velocity[0] *= (1.0 - self.ground_friction)
         
         # === UNIVERSAL POSITION UPDATE ===
-        # Update position based on velocity (works for all stages)
-        # Using 60fps normalization for consistent physics regardless of framerate
+        # THIS WAS THE KEY FIX FOR "EXTREMELY SLOW MOVEMENT" BUG
+        # 
+        # PROBLEM: Original code did: position += velocity * delta_time
+        # With delta_time ≈ 0.0167 and velocity = 8.0, movement = 0.133 pixels/frame
+        # This was visually imperceptible!
+        #
+        # SOLUTION: Added 60fps normalization: position += velocity * 60 * delta_time
+        # Now with velocity = 8.0: movement = 8.0 * 60 * 0.0167 ≈ 8 pixels/frame
+        # This creates visible, smooth movement regardless of actual framerate
+        
         old_position = character.position.copy()
         
-        # Calculate movement with 60fps normalization
+        # Calculate movement with 60fps normalization (THE CRITICAL FIX)
         x_movement = character.velocity[0] * 60.0 * delta_time
         y_movement = character.velocity[1] * 60.0 * delta_time
         
         new_x = character.position[0] + x_movement
         new_y = character.position[1] + y_movement
         
+        # Debug output helps verify the fix is working
         print(f"📍 Position update P{character.player_id}: ({character.position[0]:.1f}, {character.position[1]:.1f}) -> ({new_x:.1f}, {new_y:.1f})")
         print(f"🚀 Movement calculation: vel_x({character.velocity[0]:.2f}) * 60 * dt({delta_time:.4f}) = {x_movement:.4f}")
         print(f"🚀 Movement calculation: vel_y({character.velocity[1]:.2f}) * 60 * dt({delta_time:.4f}) = {y_movement:.4f}")
@@ -280,9 +320,19 @@ class PhysicsManager:
         """
         Handle collision with modern Stage objects (Battlefield, Plains, etc.)
         
+        === FIX FOR "CHARACTERS STUCK IN MIDAIR" BUG ===
+        The original problem was that characters would be detected as NOT on platforms
+        but their on_ground state was never properly updated, causing them to hover.
+        
+        This method now:
+        1. Checks collision with each platform in the stage
+        2. CRITICALLY: Actually updates character.on_ground based on results
+        3. Properly transitions characters to FALLING state when airborne
+        4. Extensive debug output tracks the entire collision process
+        
         Args:
             character: Character to check collisions for
-            stage: Modern Stage object with platforms
+            stage: Modern Stage object with platforms (Battlefield, Plains, etc.)
         """
         print(f"🏗️ Modern stage collision check for P{character.player_id} on {stage.name}")
         character_rect = character.get_collision_rect()
@@ -290,7 +340,8 @@ class PhysicsManager:
         
         print(f"🎪 Character P{character.player_id} rect: {character_rect}, checking {len(stage.platforms)} platforms")
         
-        # Check collision with each platform
+        # === CHECK ALL PLATFORMS ===
+        # Loop through every platform and test collision
         for i, platform in enumerate(stage.platforms):
             platform_id = getattr(platform, 'platform_id', f'platform_{i}')
             print(f"🧱 Checking platform {platform_id}: pos=({platform.x}, {platform.y}), size=({platform.width}, {platform.height})")
@@ -298,15 +349,16 @@ class PhysicsManager:
             if self.check_platform_landing(character, platform):
                 print(f"✅ P{character.player_id} landed on platform {platform_id}")
                 character_on_platform = True
-                break
+                break  # Found a platform, no need to check others
             else:
                 print(f"❌ P{character.player_id} not on platform {platform_id}")
         
-        # CRITICAL FIX: Actually update the character's ground state
+        # === CRITICAL FIX: UPDATE GROUND STATE ===
+        # This was the missing piece - actually setting the character's ground state
         if not character_on_platform:
             print(f"🌫️ P{character.player_id} not on any platform - setting to airborne")
             character.on_ground = False
-            # Make sure the character knows they're falling
+            # Make sure the character visually shows they're falling
             if hasattr(character, 'change_state') and character.velocity[1] >= 0:
                 from src.characters.base_character import CharacterState
                 character.change_state(CharacterState.FALLING)
