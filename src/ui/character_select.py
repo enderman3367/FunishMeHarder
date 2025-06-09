@@ -23,6 +23,7 @@ from src.characters.warrior import Warrior
 from src.characters.speedster import Speedster
 from src.characters.heavy import Heavy
 from enum import Enum
+from src.input.input_manager import InputManager
 
 class SelectionState(Enum):
     """
@@ -332,16 +333,18 @@ class CharacterSelectState(GameState):
         for i, stat in enumerate(stats):
             stat_text = self.hint_font.render(stat, True, (200, 200, 200))
             screen.blit(stat_text, (x + 15, y + 115 + i * 18))
-    
+
     def render_control_hints(self, screen):
         """
         Render control hints for both players
         """
+        myinputmanager = InputManager()
+        # player1_keys = input_manager.player1_keys
         # Player 1 controls (left side)
         p1_hints = [
             "Player 1 Controls:",
-            "WASD - Move cursor",
-            "LSHIFT - Select/Confirm",
+            f"{(pygame.key.name(myinputmanager.player1_keys['up'])).upper()}{pygame.key.name(myinputmanager.player1_keys['left']).upper()}{pygame.key.name(myinputmanager.player1_keys['down']).upper()}{pygame.key.name(myinputmanager.player1_keys['right']).upper()} - Move cursor",
+            "Q - Select/Confirm",
             "ESC - Back to menu"
         ]
         
