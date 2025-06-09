@@ -139,9 +139,9 @@ class StageSelectState(GameState):
         if self.confirmed_selection is not None:
             self.transition_timer -= delta_time
             if self.transition_timer <= 0:
-                # Store stage selection and proceed to gameplay
+                # Store stage selection and proceed to the versus screen
                 self.state_manager.selected_stage = self.stages[self.confirmed_selection]
-                self.state_manager.change_state(GameStateType.GAMEPLAY)
+                self.state_manager.change_state(GameStateType.VERSUS_SCREEN)
     
     def render(self, screen):
         """

@@ -118,7 +118,10 @@ class PlayerInput:
         """
         Check if an action is currently pressed
         """
-        return self.current_inputs.get(action, False)
+        result = self.current_inputs.get(action, False)
+        if result:  # Only print when keys are actually pressed to avoid spam
+            print(f"🔑 Input detected: {action} = {result}")
+        return result
     
     def was_just_pressed(self, action):
         """
@@ -239,6 +242,21 @@ class InputManager:
         """
         # Get current keyboard state
         self.keys_pressed = pygame.key.get_pressed()
+        
+        # Check if any movement keys are pressed (for debugging)
+        any_p1_movement = (self.keys_pressed[self.player1_keys['left']] or 
+                          self.keys_pressed[self.player1_keys['right']] or
+                          self.keys_pressed[self.player1_keys['up']] or
+                          self.keys_pressed[self.player1_keys['down']])
+        any_p2_movement = (self.keys_pressed[self.player2_keys['left']] or 
+                          self.keys_pressed[self.player2_keys['right']] or
+                          self.keys_pressed[self.player2_keys['up']] or
+                          self.keys_pressed[self.player2_keys['down']])
+        
+        if any_p1_movement:
+            print(f"⌨️ Raw P1 keys: A={self.keys_pressed[self.player1_keys['left']]}, D={self.keys_pressed[self.player1_keys['right']]}, W={self.keys_pressed[self.player1_keys['up']]}, S={self.keys_pressed[self.player1_keys['down']]}")
+        if any_p2_movement:
+            print(f"⌨️ Raw P2 keys: J={self.keys_pressed[self.player2_keys['left']]}, L={self.keys_pressed[self.player2_keys['right']]}, I={self.keys_pressed[self.player2_keys['up']]}, K={self.keys_pressed[self.player2_keys['down']]}")
         
         # Update global inputs
         self.pause_pressed = self.keys_pressed[self.global_keys['pause']]
