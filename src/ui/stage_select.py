@@ -98,10 +98,10 @@ class StageSelectState(GameState):
         if event.type == pygame.KEYDOWN:
             if self.confirmed_selection is None:
                 # Player 1 controls only
-                if event.key == pygame.K_LEFT:  # Left
+                if event.key == pygame.K_f:  # Left
                     self.current_selection = (self.current_selection - 1) % len(self.stages)
                     self.play_navigate_sound()
-                elif event.key == pygame.K_RIGHT:  # Right
+                elif event.key == pygame.K_j:  # Right
                     self.current_selection = (self.current_selection + 1) % len(self.stages)
                     self.play_navigate_sound()
                 elif event.key == pygame.K_SPACE:  # Confirm
@@ -275,7 +275,7 @@ class StageSelectState(GameState):
         """
         hints = [
             "Player 1 Controls:",
-            "A/D - Select stage",
+            "F/J - Select stage",
             "Space - Confirm",
             "ESC - Back to character select"
         ]
