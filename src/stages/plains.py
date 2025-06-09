@@ -170,7 +170,7 @@ class Plains(Stage):
         
         side_platform_width = 120    # Smaller than Battlefield for less camping
         side_platform_height = 18    # Thinner to feel less substantial
-        side_platform_y = main_platform_y - 120  # Lower than Battlefield (less vertical play)
+        side_platform_y = main_platform_y - 100  # Lowered for even easier access
         
         # Left side platform (far from center)
         left_platform_x = main_platform_x + 80  # Further inset than Battlefield
@@ -408,60 +408,6 @@ class Plains(Stage):
         
         print(f"✓ Weather system initialized: {['cloudy', 'clear'][self.cloud_coverage < 0.5]} skies")
     
-    def setup_terrain(self):
-        """
-        Create natural terrain variations and features
-        
-        Terrain Philosophy:
-        ==================
-        - Subtle elevation changes add visual interest without affecting gameplay
-        - Different surface types provide variety in movement feel
-        - Natural boundaries feel organic rather than artificial
-        - Terrain guides players toward center stage combat
-        """
-        
-        # === ELEVATION VARIATIONS ===
-        # Subtle height changes across the main platform
-        self.elevation_changes = []
-        
-        # Create gentle rolling hills across the stage
-        num_elevation_points = 20
-        for i in range(num_elevation_points):
-            x_position = (self.width / num_elevation_points) * i
-            # Use sine wave for natural rolling terrain
-            elevation_offset = math.sin(i * 0.5) * self.terrain_variation
-            
-            self.elevation_changes.append({
-                'x': x_position,
-                'height_offset': elevation_offset,
-                'terrain_type': 'grass'
-            })
-        
-        # === SURFACE FRICTION ZONES ===
-        # Different areas have slightly different movement properties
-        self.grass_friction_zones = [
-            {
-                'x': self.main_platform.x,
-                'width': self.main_platform.width * 0.3,
-                'friction_modifier': 0.9,  # Slightly less friction (fresher grass)
-                'type': 'fresh_grass'
-            },
-            {
-                'x': self.main_platform.x + (self.main_platform.width * 0.35),
-                'width': self.main_platform.width * 0.3,
-                'friction_modifier': 1.0,  # Standard friction
-                'type': 'normal_grass'
-            },
-            {
-                'x': self.main_platform.x + (self.main_platform.width * 0.7),
-                'width': self.main_platform.width * 0.3,
-                'friction_modifier': 0.9,  # Slightly less friction
-                'type': 'fresh_grass'
-            }
-        ]
-        
-        print("✓ Natural terrain variations created for visual and tactical variety")
-    
     def setup_camera_bounds(self):
         """
         Define camera bounds optimized for the wider Plains stage
@@ -648,58 +594,6 @@ class Plains(Stage):
         self.grass_sway_phase = 0.0
         
         print("✓ Natural visual system initialized with weather effects and terrain animation")
-    
-    def setup_weather_system(self):
-        """
-        Initialize dynamic weather effects
-        
-        Weather Philosophy:
-        ==================
-        - Weather provides atmosphere without affecting gameplay balance
-        - Visual effects enhance the natural theme
-        - Subtle environmental storytelling
-        - Adds variety to multiple matches on the same stage
-        """
-        
-        # === WIND SYSTEM ===
-        # Affects visual elements but not gameplay physics
-        self.wind_system = {
-            'direction': self.wind_direction,
-            'strength': self.wind_strength,
-            'gusts': {
-                'enabled': True,
-                'frequency': random.uniform(0.1, 0.3),  # Gusts per second
-                'strength_multiplier': random.uniform(1.5, 2.5)
-            },
-            'affects_grass': True,
-            'affects_clouds': True,
-            'affects_particles': True
-        }
-        
-        # === CLOUD SYSTEM ===
-        # Dynamic cloud coverage and movement
-        self.cloud_system = {
-            'coverage': self.cloud_coverage,
-            'movement_speed': 0.4 * self.wind_strength,
-            'types': ['cumulus', 'cirrus', 'stratus'],
-            'weather_chance': {
-                'clear': 0.4,
-                'partly_cloudy': 0.4,
-                'overcast': 0.2
-            }
-        }
-        
-        # === LIGHTING SYSTEM ===
-        # Natural lighting that changes throughout the match
-        self.lighting_system = {
-            'time_of_day': self.time_of_day,
-            'sun_angle': 45,  # Degrees above horizon
-            'shadow_length': 0.6,  # Relative to object height
-            'color_temperature': 5500,  # Kelvin (daylight)
-            'atmospheric_scattering': True
-        }
-        
-        print(f"✓ Weather system initialized: {['cloudy', 'clear'][self.cloud_coverage < 0.5]} skies")
     
     def apply_stage_gravity(self, character, delta_time):
         """

@@ -168,6 +168,9 @@ class PhysicsManager:
         
         # Performance optimization
         self.spatial_grid = {}  # TODO: Implement spatial hashing
+
+        # KO tracking
+        self.k_o_d_players_this_frame = []
     
     def update(self, delta_time, characters, stage):
         """
@@ -184,6 +187,9 @@ class PhysicsManager:
         - Add environmental physics (moving platforms, wind)
         - Performance optimization for larger character counts
         """
+        # Reset KO'd players for this frame
+        self.k_o_d_players_this_frame = []
+
         # === CHARACTER PHYSICS (COMPLETED) ===
         # Update each character's movement, gravity, and stage collision
         for character in characters:
@@ -196,6 +202,8 @@ class PhysicsManager:
         # === HITBOX MANAGEMENT (TODO: IMPLEMENT) ===  
         # Update active attack hitboxes and timers
         self.update_hitboxes()
+
+        return self.k_o_d_players_this_frame
     
     def update_character_physics(self, character, delta_time, stage):
         """
@@ -313,7 +321,7 @@ class PhysicsManager:
             self.handle_legacy_stage_collision(character, stage)
         
         # === BLAST ZONE CHECKING ===
-        # Check if character has gone beyond the stage boundaries and should be KO'd
+        # Check if character has entered a blast zone and should be KO'd
         self.check_blast_zone_ko(character, stage)
     
     def handle_modern_stage_collision(self, character, stage):
@@ -484,7 +492,10 @@ class PhysicsManager:
         
         # === HANDLE KO ===
         if ko_direction:
-            self.ko_character(character, ko_direction)
+            # self.ko_character(character, ko_direction)
+            if character.player_id not in self.k_o_d_players_this_frame:
+                self.k_o_d_players_this_frame.append(character.player_id)
+                print(f"💀 Player {character.player_id} KO'd by {ko_direction} blast zone! Flagged for KO.")
     
     def get_stage_blast_zones(self, stage):
         """
@@ -533,37 +544,10 @@ class PhysicsManager:
     
     def ko_character(self, character, direction):
         """
-        Handle character KO when they enter a blast zone
-        
-        Args:
-            character: Character that was KO'd
-            direction: Direction of the blast zone ('left', 'right', 'top', 'bottom')
+        DEPRECATED: This logic is now handled in GameplayState.ko_player
         """
-        print(f"💀 Player {character.player_id} KO'd by {direction} blast zone!")
-        
-        # Mark character as KO'd
-        character.is_ko = True
-        character.ko_direction = direction
-        
-        # Reset character position to respawn point
-        if character.player_id == 1:
-            character.position = [300, 400]  # Player 1 respawn
-        else:
-            character.position = [900, 400]  # Player 2 respawn
-        
-        # Reset character velocity
-        character.velocity = [0, 0]
-        character.on_ground = False
-        
-        # Add respawn invincibility
-        character.respawn_invincibility = 120  # 2 seconds at 60 FPS
-        
-        print(f"🔄 Player {character.player_id} respawning...")
-        
-        # TODO: Add visual effects for KO and respawn
-        # TODO: Add stock/lives system
-        # TODO: Add respawn animation
-    
+        pass
+
     def handle_battlefield_platforms(self, character):
         """
         Handle collision with battlefield platforms

@@ -148,7 +148,7 @@ class Battlefield(Stage):
         
         side_platform_width = 180    # Smaller than main for tactical positioning
         side_platform_height = 20    # Thinner since they're pass-through
-        side_platform_y = main_platform_y - 200  # High enough for gameplay depth
+        side_platform_y = main_platform_y - 120  # Lowered significantly for easier access
         
         # Left side platform
         left_platform_x = main_platform_x + 50  # Slight inset from main platform edge
@@ -193,7 +193,7 @@ class Battlefield(Stage):
         top_platform_width = 160     # Smallest platform for precise positioning
         top_platform_height = 20     # Same thickness as side platforms
         top_platform_x = (self.width - top_platform_width) // 2  # Perfect center
-        top_platform_y = side_platform_y - 180  # Creates equilateral triangle feel
+        top_platform_y = side_platform_y - 110  # Lowered significantly for easier access
         
         top_platform = Platform(
             x=top_platform_x,

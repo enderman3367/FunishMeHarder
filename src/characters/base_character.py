@@ -99,6 +99,7 @@ class Character:
         self.short_hop_strength = 8.0   # For light jump inputs
         
         # Character stats (Smash Bros style - damage goes UP from 0%)
+        self.lives = 3
         self.damage_percent = 0.0  # Starts at 0%, goes up when hit
         self.max_damage_percent = 999.0  # Theoretical max (usually KO'd before this)
         self.weight = 1.0  # Affects knockback and fall speed
@@ -440,7 +441,15 @@ class Character:
         self.damage_percent += damage
         
         # Scale knockback based on damage percentage (like Smash Bros)
-        damage_multiplier = 1.0 + (self.damage_percent * 0.01)  # More damage = more knockback
+        # Base knockback scaling
+        damage_multiplier = 1.0 + (self.damage_percent / 70.0)
+
+        # Exponential scaling for high damage percentages
+        if self.damage_percent > 100:
+            # This will make knockback much stronger at higher percents
+            high_percent_scaler = ((self.damage_percent - 80) / 50.0) ** 1.5
+            damage_multiplier += high_percent_scaler
+
         scaled_knockback = [knockback_vector[0] * damage_multiplier / self.weight,
                            knockback_vector[1] * damage_multiplier / self.weight]
         self.velocity[0] += scaled_knockback[0]
@@ -461,6 +470,14 @@ class Character:
         self.change_state(CharacterState.HIT_STUN)
         
         print(f"Player {self.player_id} took {damage} damage! Now at {self.damage_percent:.0f}%")
+    
+    def lose_life(self):
+        """
+        Called when a character is KO'd. Decrements lives and resets damage.
+        """
+        self.lives -= 1
+        self.damage_percent = 0.0
+        print(f"Player {self.player_id} lost a life! {self.lives} remaining.")
     
     def update_animations(self, delta_time):
         """

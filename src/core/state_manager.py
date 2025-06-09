@@ -25,6 +25,7 @@ class GameStateType(Enum):
     MAIN_MENU = "main_menu"
     CHARACTER_SELECT = "character_select"
     STAGE_SELECT = "stage_select"
+    VERSUS_SCREEN = "versus_screen"
     GAMEPLAY = "gameplay"
     WIN_SCREEN = "win_screen"
     PAUSE = "pause"
@@ -144,6 +145,8 @@ class GameplayState(GameState):
         if self.player1_character and self.player2_character:
             self.player1_character.damage_percent = 0.0
             self.player2_character.damage_percent = 0.0
+            self.player1_character.lives = 3
+            self.player2_character.lives = 3
             self.player1_character.velocity = [0, 0]
             self.player2_character.velocity = [0, 0]
             # Ensure characters start on ground (they should be at spawn points which are on platforms)
@@ -277,14 +280,24 @@ class GameplayState(GameState):
         
         # Update characters with their inputs (only if not respawning)
         if 1 not in self.respawn_timer:
-            self.player1_character.update(delta_time, player1_input, self.stage_bounds)
+            self.player1_character.update(delta_time, player1_input, self.stage_object)
         if 2 not in self.respawn_timer:
-            self.player2_character.update(delta_time, player2_input, self.stage_bounds)
+            self.player2_character.update(delta_time, player2_input, self.stage_object)
         
         # Update physics manager with proper stage object
         physics_manager = self.game_engine.get_physics_manager()
         stage_to_pass = getattr(self, 'stage_object', self.stage_bounds)
-        physics_manager.update(delta_time, self.characters, stage_to_pass)
+        k_o_d_players = physics_manager.update(delta_time, self.characters, stage_to_pass)
+        
+        # Handle KOs from blast zones
+        for player_id in k_o_d_players:
+            self.ko_player(player_id)
+        
+        # Check for damage-based KOs
+        if 1 not in self.respawn_timer and self.player1_character.damage_percent >= 300:
+            self.ko_player(1)
+        if 2 not in self.respawn_timer and self.player2_character.damage_percent >= 300:
+            self.ko_player(2)
         
         # Update stage dynamics (weather, animations, etc.)
         if hasattr(self, 'stage_object'):
@@ -307,58 +320,6 @@ class GameplayState(GameState):
                 self.respawn_player(player)
                 del self.respawn_timer[player]
     
-    def check_fall_zones(self):
-        """
-        Check if players have fallen off the stage
-        """
-        # For battlefield, check if players fall off platforms OR fall too far down
-        # Check Player 1
-        if ((self.player1_character.position[0] < self.fall_zones["left"] or 
-             self.player1_character.position[0] > self.fall_zones["right"] or
-             self.player1_character.position[1] > 700) and 1 not in self.respawn_timer):
-            self.ko_player(1)
-        
-        # Check Player 2  
-        if ((self.player2_character.position[0] < self.fall_zones["left"] or 
-             self.player2_character.position[0] > self.fall_zones["right"] or
-             self.player2_character.position[1] > 700) and 2 not in self.respawn_timer):
-            self.ko_player(2)
-    
-    def ko_player(self, player):
-        """
-        KO a player and set them up for respawn
-        """
-        print(f"Player {player} fell off the stage!")
-        
-        # Set respawn timer (2 seconds)
-        self.respawn_timer[player] = 2.0
-        
-        # Move player off-screen immediately
-        if player == 1:
-            self.player1_character.position[0] = -500
-            self.player1_character.position[1] = 300
-        else:
-            self.player2_character.position[0] = 1780
-            self.player2_character.position[1] = 300
-    
-    def respawn_player(self, player):
-        """
-        Respawn a player at their spawn position
-        """
-        print(f"Player {player} respawned!")
-        
-        pos = self.respawn_positions[player]
-        if player == 1:
-            self.player1_character.position[0] = pos[0]
-            self.player1_character.position[1] = pos[1] 
-            self.player1_character.velocity = [0, 0]
-            self.player1_character.is_in_hitstun = False
-        else:
-            self.player2_character.position[0] = pos[0]
-            self.player2_character.position[1] = pos[1]
-            self.player2_character.velocity = [0, 0]
-            self.player2_character.is_in_hitstun = False
-    
     def check_match_end(self):
         """
         Check for match end conditions
@@ -367,12 +328,12 @@ class GameplayState(GameState):
         winner_character = None
         loser_character = None
         
-        # Check damage-based KOs (300% damage)
-        if self.player1_character.damage_percent >= 300:
+        # Check for life-based KO
+        if self.player1_character.lives <= 0:
             winner = 2
             winner_character = self.player2_character.name
             loser_character = self.player1_character.name
-        elif self.player2_character.damage_percent >= 300:
+        elif self.player2_character.lives <= 0:
             winner = 1
             winner_character = self.player1_character.name
             loser_character = self.player2_character.name
@@ -530,12 +491,21 @@ class GameplayState(GameState):
         screen.blit(p1_damage_shadow, (52, 642))  # Shadow offset
         screen.blit(p1_damage_text, (50, 640))
         
+        # Player 1 lives
+        p1_lives_text = small_font.render(f"Lives: {self.player1_character.lives}", True, (255, 255, 255))
+        screen.blit(p1_lives_text, (50, 690))
+        
         # Player 2 damage percentage (bottom right)
         p2_damage_text = large_font.render(f"{int(self.player2_character.damage_percent)}%", True, (255, 255, 255))
         p2_damage_shadow = large_font.render(f"{int(self.player2_character.damage_percent)}%", True, (0, 0, 0))
         p2_rect = p2_damage_text.get_rect()
         screen.blit(p2_damage_shadow, (1280 - p2_rect.width - 48, 642))  # Shadow offset
         screen.blit(p2_damage_text, (1280 - p2_rect.width - 50, 640))
+        
+        # Player 2 lives
+        p2_lives_text = small_font.render(f"Lives: {self.player2_character.lives}", True, (255, 255, 255))
+        p2_lives_rect = p2_lives_text.get_rect()
+        screen.blit(p2_lives_text, (1280 - p2_lives_rect.width - 50, 690))
         
         # Character names
         p1_name = small_font.render(self.player1_character.name, True, (100, 150, 255))
@@ -566,6 +536,53 @@ class GameplayState(GameState):
             for i, instruction in enumerate(instructions):
                 text = small_font.render(instruction, True, (255, 255, 0))
                 screen.blit(text, (10, 720 - 80 + i * 20))
+
+    def ko_player(self, player):
+        """
+        KO a player, decrement their lives, and set them up for respawn.
+        """
+        character_to_ko = self.player1_character if player == 1 else self.player2_character
+        
+        # Avoid multiple KOs in the same frame
+        if player in self.respawn_timer:
+            return
+
+        print(f"Player {player} has been KO'd!")
+        character_to_ko.lose_life()
+        
+        # Check for game over
+        if character_to_ko.lives <= 0:
+            self.check_match_end()
+            return
+
+        # Set respawn timer (2 seconds)
+        self.respawn_timer[player] = 2.0
+        
+        # Move player off-screen immediately
+        if player == 1:
+            self.player1_character.position[0] = -500
+            self.player1_character.position[1] = 300
+        else:
+            self.player2_character.position[0] = 1780
+            self.player2_character.position[1] = 300
+    
+    def respawn_player(self, player):
+        """
+        Respawn a player at their spawn position
+        """
+        print(f"Player {player} respawned!")
+        
+        pos = self.respawn_positions[player]
+        if player == 1:
+            self.player1_character.position[0] = pos[0]
+            self.player1_character.position[1] = pos[1] 
+            self.player1_character.velocity = [0, 0]
+            self.player1_character.is_in_hitstun = False
+        else:
+            self.player2_character.position[0] = pos[0]
+            self.player2_character.position[1] = pos[1]
+            self.player2_character.velocity = [0, 0]
+            self.player2_character.is_in_hitstun = False
 
 class SimpleMenuState(GameState):
     """
@@ -689,13 +706,15 @@ class StateManager:
         """
         # Import UI states here to avoid circular imports
         from src.ui.character_select import CharacterSelectState
-        from src.ui.stage_select import StageSelectState  
+        from src.ui.stage_select import StageSelectState
+        from src.ui.versus_screen import VersusScreenState
         from src.ui.win_screen import WinScreenState
         
         # Create all states
         self.states[GameStateType.MAIN_MENU] = SimpleMenuState(self)
         self.states[GameStateType.CHARACTER_SELECT] = CharacterSelectState(self)
         self.states[GameStateType.STAGE_SELECT] = StageSelectState(self)
+        self.states[GameStateType.VERSUS_SCREEN] = VersusScreenState(self)
         self.states[GameStateType.GAMEPLAY] = GameplayState(self)
         self.states[GameStateType.WIN_SCREEN] = WinScreenState(self)
     
