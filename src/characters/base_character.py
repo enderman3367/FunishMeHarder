@@ -707,7 +707,6 @@ class Character:
         self.can_act = True
         self.current_attack = None
         self.attack_hitbox_created = False
-        self.active_hitboxes.clear()
         
         # Return to appropriate state
         if self.on_ground:

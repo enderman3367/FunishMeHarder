@@ -51,7 +51,7 @@ class Warrior(Character):
         self.weight = 1.0  # Balanced weight
         self.walk_speed = 3.5
         self.run_speed = 6.5
-        self.jump_strength = 14.0
+        self.jump_strength = 16.0
         self.air_speed = 4.0
         
         # Special move properties
@@ -191,7 +191,7 @@ class Warrior(Character):
                 'startup_frames': 8,
                 'active_frames': 8,
                 'recovery_frames': 20,
-                'damage': 12,
+                'damage': 16,
                 'knockback': 15,
                 'range': 60,
                 'launches_upward': True

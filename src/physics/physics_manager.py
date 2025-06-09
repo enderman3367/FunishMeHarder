@@ -276,22 +276,29 @@ class PhysicsManager:
         # Calculate movement with 60fps normalization (THE CRITICAL FIX)
         x_movement = character.velocity[0] * 60.0 * delta_time
         y_movement = character.velocity[1] * 60.0 * delta_time
-        
-        new_x = character.position[0] + x_movement
-        new_y = character.position[1] + y_movement
-        
+
+        # --- COLLISION FIX: Iterative movement ---
+        # If movement is too large, we might clip through platforms.
+        # This breaks down large movements into smaller steps.
+        steps = int(max(abs(x_movement), abs(y_movement)) / 10) + 1
+        step_x = x_movement / steps
+        step_y = y_movement / steps
+
+        for _ in range(steps):
+            character.position[0] += step_x
+            character.position[1] += step_y
+            self.handle_stage_collision(character, stage, character.position.copy())
+
         # Debug output helps verify the fix is working
-        print(f"📍 Position update P{character.player_id}: ({character.position[0]:.1f}, {character.position[1]:.1f}) -> ({new_x:.1f}, {new_y:.1f})")
-        print(f"🚀 Movement calculation: vel_x({character.velocity[0]:.2f}) * 60 * dt({delta_time:.4f}) = {x_movement:.4f}")
-        print(f"🚀 Movement calculation: vel_y({character.velocity[1]:.2f}) * 60 * dt({delta_time:.4f}) = {y_movement:.4f}")
-        
-        character.position[0] = new_x
-        character.position[1] = new_y
-        
+        print(f"📍 Position update P{character.player_id}: ({old_position[0]:.1f}, {old_position[1]:.1f}) -> ({character.position[0]:.1f}, {character.position[1]:.1f})")
+        print(f"🚀 Movement calculation: vel_x({character.velocity[0]:.2f}) * 60 * dt({delta_time:.4f}) = {x_movement:.4f} in {steps} steps")
+        print(f"🚀 Movement calculation: vel_y({character.velocity[1]:.2f}) * 60 * dt({delta_time:.4f}) = {y_movement:.4f} in {steps} steps")
+
         # === STAGE COLLISION HANDLING ===
         # Handle collisions with stage elements
-        print(f"🎯 Checking stage collision for P{character.player_id}")
-        self.handle_stage_collision(character, stage, old_position)
+        # This is now done inside the loop
+        # print(f"🎯 Checking stage collision for P{character.player_id}")
+        # self.handle_stage_collision(character, stage, old_position)
     
     def handle_stage_collision(self, character, stage, old_position):
         """
@@ -635,68 +642,60 @@ class PhysicsManager:
         """
         for attacker in characters:
             hitboxes_to_remove = []
-            
+
             for hitbox in attacker.active_hitboxes:
-                hit_someone = False
+                # --- Lifetime & Projectile Update ---
+                if hitbox.get('is_projectile', False):
+                    hitbox['x'] += hitbox.get('velocity_x', 0)
+                    hitbox['y'] += hitbox.get('velocity_y', 0)
+                    hitbox['lifetime'] -= 1
+                    if (hitbox['lifetime'] <= 0 or hitbox['x'] < -100 or 
+                        hitbox['x'] > 1380 or hitbox['y'] > 800):
+                        if hitbox not in hitboxes_to_remove:
+                            hitboxes_to_remove.append(hitbox)
+                        continue
+                else: # Non-projectiles use frames_remaining
+                    hitbox['frames_remaining'] -= 1
+                    if hitbox['frames_remaining'] <= 0:
+                        if hitbox not in hitboxes_to_remove:
+                            hitboxes_to_remove.append(hitbox)
+                        continue
                 
+                # --- Collision Detection ---
                 for defender in characters:
                     if defender == attacker:
-                        continue  # Can't hit yourself
-                    
-                    # Check collision between hitbox and defender's hurtbox
+                        continue
+
                     hitbox_rect = pygame.Rect(
                         hitbox['x'] - hitbox['width'] // 2,
                         hitbox['y'] - hitbox['height'] // 2,
                         hitbox['width'],
                         hitbox['height']
                     )
-                    
                     defender_rect = defender.get_collision_rect()
-                    
+
                     if hitbox_rect.colliderect(defender_rect):
-                        # Handle multi-hit attacks differently
                         is_multihit = hitbox.get('is_multihit', False)
                         
                         if is_multihit:
-                            # For multi-hit attacks, check if enough time has passed since last hit
                             current_frame = attacker.attack_state_frames
                             last_hit = hitbox.get('last_hit_frame', 0)
                             hit_interval = hitbox.get('hit_interval', 4)
-                            
                             if current_frame - last_hit >= hit_interval:
                                 self.apply_hit(hitbox, defender)
                                 hitbox['last_hit_frame'] = current_frame
-                                hit_someone = True
                         else:
-                            # Regular attacks hit once then remove hitbox
+                            # Regular attacks hit once
                             self.apply_hit(hitbox, defender)
-                            hit_someone = True
-                            # Mark for removal (but don't remove immediately to avoid iteration issues)
                             if hitbox not in hitboxes_to_remove:
                                 hitboxes_to_remove.append(hitbox)
-                            break
-                
-                # Update projectiles
-                if hitbox.get('is_projectile', False):
-                    # Move projectile
-                    hitbox['x'] += hitbox.get('velocity_x', 0)
-                    hitbox['y'] += hitbox.get('velocity_y', 0)
-                    
-                    # Decrease lifetime
-                    hitbox['lifetime'] -= 1
-                    
-                    # Mark for removal if expired or off-screen
-                    if (hitbox['lifetime'] <= 0 or 
-                        hitbox['x'] < -100 or hitbox['x'] > 1380 or
-                        hitbox['y'] > 800):
-                        if hitbox not in hitboxes_to_remove:
-                            hitboxes_to_remove.append(hitbox)
+                            break # Move to next hitbox after a hit
             
             # Remove hitboxes that should be removed
             for hitbox in hitboxes_to_remove:
                 if hitbox in attacker.active_hitboxes:
                     attacker.active_hitboxes.remove(hitbox)
-    
+
     def apply_hit(self, hitbox, target_character):
         """
         Apply hit effects to target character

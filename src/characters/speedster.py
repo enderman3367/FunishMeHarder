@@ -74,6 +74,11 @@ class Speedster(Character):
         self.sonic_boom_speed = 12
         self.sonic_boom_damage = 6
         
+        # Flight ability
+        self.is_flying = False
+        self.flight_duration = 0.5  # seconds
+        self.flight_timer = 0.0
+        
         # Character name and description
         self.name = "Speedster"
         self.description = "Lightning-fast fighter with superior mobility and combo potential"
@@ -102,7 +107,14 @@ class Speedster(Character):
         - Multiple hits with decent knockback
         - Can change direction mid-move
         """
-        pass
+        if not self.can_act:
+            return
+
+        self.is_flying = True
+        self.flight_timer = self.flight_duration
+        self.change_state(CharacterState.UP_SPECIAL)
+        self.can_act = False
+        self.velocity[1] = 0  # Stop vertical movement before flying
     
     def perform_down_special(self):
         """
@@ -309,13 +321,39 @@ class Speedster(Character):
             self.speed_boost_timer -= 1
             if self.speed_boost_timer <= 0:
                 self.end_speed_boost()
+
+        # Handle flight
+        if self.is_flying:
+            self.flight_timer -= delta_time
+            if self.flight_timer <= 0:
+                self.is_flying = False
+                self.can_act = True
+            else:
+                # Allow controlled flight
+                self.velocity[1] = 0
+                if player_input.is_pressed('up'):
+                    self.velocity[1] = -self.jump_strength / 2
+                if player_input.is_pressed('down'):
+                    self.velocity[1] = self.jump_strength / 2
+
+                self.velocity[0] = player_input.get_horizontal_axis() * self.air_speed
+                
+                # The actual position update will be handled by the physics manager
+                # We just set the velocity here.
+                # We also need to prevent gravity from affecting the character during flight.
+                # This is a bit of a hack, but we can set the character's weight to 0 during flight.
+                self.weight = 0
+
+        else:
+            # Reset weight when not flying
+            self.weight = 0.7
         
         # Call parent update
         super().update(delta_time, player_input, stage)
         
         # Handle multi-hit attacks
         self.update_multihit_attacks()
-    
+
     def update_multihit_attacks(self):
         """
         Handle multi-hit attack logic

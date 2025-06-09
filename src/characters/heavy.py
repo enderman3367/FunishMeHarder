@@ -75,6 +75,9 @@ class Heavy(Character):
         self.seismic_slam_damage = 22
         self.seismic_slam_range = 200
         
+        self.is_ground_pounding = False
+        self.ground_pound_attack_data = None
+        
         # Character name and description
         self.name = "Heavy"
         self.description = "Massive fighter with devastating power and iron defense"
@@ -100,8 +103,8 @@ class Heavy(Character):
                 'type': 'heavy_punch',
                 'startup_frames': 8,
                 'active_frames': 6,
-                'recovery_frames': 12,
-                'damage': 14,
+                'recovery_frames': 18,
+                'damage': 18,
                 'knockback': 9,
                 'range': 75,
                 'has_armor': True,
@@ -115,25 +118,30 @@ class Heavy(Character):
                 'startup_frames': 18,  # Very slow startup
                 'active_frames': 8,
                 'recovery_frames': 25,
-                'damage': 22,  # Highest damage
-                'knockback': 15,
+                'damage': 25,  # Highest damage
+                'knockback': 10,
                 'range': 85,
                 'has_armor': True,
-                'armor_frames': 15
+                'armor_frames': 15,
+                'has_slide': True
             }
         elif direction == 'up':
             # Ground pound with shockwave
+            self.velocity[1] = -self.jump_strength * 1.2  # A bit higher than a normal jump
+            self.on_ground = False
+            self.is_ground_pounding = True
             self.change_state(CharacterState.UP_SPECIAL)
             self.current_attack = {
                 'type': 'ground_pound',
-                'startup_frames': 15,
-                'active_frames': 10,
+                'startup_frames': 5, # Quick startup
+                'active_frames': 30, # Long active to allow for jump
                 'recovery_frames': 30,
-                'damage': 18,
+                'damage': 22,
                 'knockback': 12,
                 'range': 120,  # Wide area
                 'has_shockwave': True
             }
+            self.ground_pound_attack_data = self.current_attack.copy()
         elif direction == 'down':
             # Armor stance (damage reduction + super armor)
             self.change_state(CharacterState.DOWN_SPECIAL)
@@ -175,14 +183,15 @@ class Heavy(Character):
         if attack_type == 'armor_stance':
             # Apply armor stance buff
             self.apply_armor_stance()
-        elif attack_type == 'ground_pound':
-            # Create large area hitbox
-            self.create_ground_pound_hitbox()
         else:
             # Regular melee attacks but larger
             hitbox_range = self.current_attack.get('range', 75)
             hitbox_offset_x = hitbox_range if self.facing_right else -hitbox_range
             hitbox_offset_y = -50
+
+            if attack_type == 'hammer_slam':
+                hitbox_offset_x = 0
+                hitbox_offset_y = -self.height / 2
             
             hitbox_x = self.position[0] + hitbox_offset_x
             hitbox_y = self.position[1] + hitbox_offset_y
@@ -208,22 +217,26 @@ class Heavy(Character):
         """
         Create ground pound area effect
         """
+        if not self.ground_pound_attack_data:
+            return
+
         # Large circular area around Heavy
         hitbox = {
             'x': self.position[0],
             'y': self.position[1] - 20,
             'width': 120,
             'height': 80,
-            'damage': self.current_attack['damage'],
-            'knockback': self.current_attack['knockback'],
+            'damage': self.ground_pound_attack_data['damage'],
+            'knockback': self.ground_pound_attack_data['knockback'],
             'knockback_angle': -60,  # Upward angle
             'owner': self,
-            'frames_remaining': self.current_attack['active_frames'],
+            'frames_remaining': 10, # Short duration shockwave
             'attack_type': 'ground_pound',
             'is_area_attack': True
         }
         
         self.active_hitboxes.append(hitbox)
+        self.ground_pound_attack_data = None
         print("Heavy created ground pound shockwave!")
     
     def apply_armor_stance(self):
@@ -268,6 +281,24 @@ class Heavy(Character):
             if self.power_stance_timer <= 0:
                 self.end_power_stance()
         
+        # Handle ground pound landing
+        if self.is_ground_pounding and self.on_ground:
+            self.create_ground_pound_hitbox()
+            self.is_ground_pounding = False
+            self.end_attack()
+        
+        # Handle sliding attack
+        if self.is_attacking and self.current_attack and self.current_attack.get('has_slide'):
+            slide_speed = 5.0
+            self.velocity[0] = slide_speed if self.facing_right else -slide_speed
+
+            # Cancel slide on direction change
+            horizontal_input = player_input.get_horizontal_axis()
+            if (self.facing_right and horizontal_input < 0) or \
+               (not self.facing_right and horizontal_input > 0):
+                self.current_attack['has_slide'] = False
+                self.velocity[0] = 0
+
         # Call parent update
         super().update(delta_time, player_input, stage)
     
@@ -280,6 +311,15 @@ class Heavy(Character):
         self.has_super_armor = False
         
         print("Heavy armor stance ended")
+    
+    def end_attack(self):
+        """
+        Custom end_attack to handle ground pound.
+        """
+        if self.is_ground_pounding:
+            # Don't end the attack if we are waiting to land for the ground pound.
+            return
+        super().end_attack()
     
     def take_damage(self, damage, knockback_vector, attacker):
         """
