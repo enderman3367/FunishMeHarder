@@ -4,32 +4,6 @@ FUNISH ME HARDER - ASSETS NEEDED
 This file lists all visual and audio assets needed to fully implement
 the fighting game. Currently the game uses colored rectangles as placeholders.
 
-STAGE BACKGROUNDS & ENVIRONMENTS
-================================
-
-BATTLEFIELD STAGE:
-- battlefield_background.png (1280x720) - Main background with sky
-- battlefield_clouds_layer1.png (1280x300) - Far clouds for parallax
-- battlefield_clouds_layer2.png (1280x200) - Near clouds for parallax
-- battlefield_ground_texture.png (800x40) - Main platform texture
-- battlefield_side_platform.png (180x20) - Side platform texture
-- battlefield_top_platform.png (160x20) - Top platform texture
-- battlefield_particles.png (16x16) - Dust/sparkle effects
-- battlefield_lighting_overlay.png (1280x720) - Lighting effects
-
-PLAINS STAGE:
-- plains_background.png (1280x720) - Rolling hills background
-- plains_mountains_far.png (1280x400) - Distant mountains (parallax)
-- plains_mountains_near.png (1280x300) - Near mountains (parallax) 
-- plains_grass_main.png (1000x30) - Main platform grass texture
-- plains_grass_left.png (250x20) - Left side platform grass
-- plains_grass_right.png (250x20) - Right side platform grass
-- plains_grass_animation_01.png (32x32) - Animated grass sprite 1
-- plains_grass_animation_02.png (32x32) - Animated grass sprite 2
-- plains_grass_animation_03.png (32x32) - Animated grass sprite 3
-- plains_weather_particles.png (8x8) - Rain/wind particles
-- plains_wind_effect.png (64x64) - Wind visual effect
-
 CHARACTER SPRITES & ANIMATIONS
 ==============================
 
