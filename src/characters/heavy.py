@@ -51,9 +51,9 @@ class Heavy(Character):
         self.max_health = 160  # Much higher health
         self.current_health = self.max_health
         self.weight = 1.8  # Very heavy, hard to knock back
-        self.walk_speed = 2.0  # Slow movement
-        self.run_speed = 4.0   # Still slow when running
-        self.jump_strength = 10.0  # Lower jumps
+        self.walk_speed = 1.5  # Very slow, deliberate movement
+        self.run_speed = 3.0   # Still very slow
+        self.jump_strength = 16.0  # Higher jump to compensate for weight
         self.air_speed = 2.5   # Poor air mobility
         
         # Heavy-specific mechanics
