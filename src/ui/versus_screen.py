@@ -104,7 +104,7 @@ class VersusScreenState(GameState):
 
         # Character "Fighting Stance" Image Placeholder
         # TODO: Replace this with actual character art when available.
-        image_width, image_height = 300, 400
+        image_width, image_height = 300, 300
         image_rect = pygame.Rect(0, 0, image_width, image_height)
         image_rect.center = (x_center, 420)
         
