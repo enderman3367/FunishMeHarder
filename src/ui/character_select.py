@@ -323,11 +323,11 @@ class CharacterSelectState(GameState):
         
         # Mock stats based on character
         if character['name'] == 'Warrior':
-            stats = ["Speed: ●●●○○", "Power: ●●●●○", "Defense: ●●●●○"]
+            stats = ["Speed: 3/5", "Power: 3/5", "Defense: 3/5"]
         elif character['name'] == 'Speedster':
-            stats = ["Speed: ●●●●●", "Power: ●●○○○", "Defense: ●●○○○"]
+            stats = ["Speed: 5/5", "Power: 2/5", "Defense: 2/5"]
         else:  # Heavy
-            stats = ["Speed: ●●○○○", "Power: ●●●●●", "Defense: ●●●●●"]
+            stats = ["Speed: 1/5", "Power: 4/5", "Defense: 5/5"]
         
         for i, stat in enumerate(stats):
             stat_text = self.hint_font.render(stat, True, (200, 200, 200))
@@ -341,7 +341,7 @@ class CharacterSelectState(GameState):
         p1_hints = [
             "Player 1 Controls:",
             "WASD - Move cursor",
-            "Q - Select/Confirm",
+            "LSHIFT - Select/Confirm",
             "ESC - Back to menu"
         ]
         
@@ -353,8 +353,8 @@ class CharacterSelectState(GameState):
         # Player 2 controls (right side)
         p2_hints = [
             "Player 2 Controls:",
-            "IJKL - Move cursor", 
-            "U - Select/Confirm"
+            "PL;' - Move cursor", 
+            "RSHIFT - Select/Confirm"
         ]
         
         for i, hint in enumerate(p2_hints):

@@ -44,8 +44,8 @@ def main():
     
     print("Game initialized successfully!")
     print("Controls:")
-    print("Player 1: WASD to move, Q+direction for attacks")
-    print("Player 2: IJKL to move, U+direction for attacks")
+    print("Player 1: WASD to move, LSHIFT+direction for attacks")
+    print("Player 2: PLK;' to move, RSHIFT+direction for attacks")
     print("Attack Types: No direction=Neutral, Side=Strong, Up=Launcher, Down=Spike")
     print("F3=Debug Mode, R=Reset Match, ESC=Menu")
     
