@@ -194,7 +194,7 @@ class InputManager:
             'right': pygame.K_d,
             'up': pygame.K_w,
             'down': pygame.K_s,
-            'attack': pygame.K_q,      # One attack button
+            'attack': pygame.K_LSHIFT,      # One attack button
             'grab': pygame.K_e
         }
         
@@ -204,7 +204,7 @@ class InputManager:
             'right': pygame.K_l,
             'up': pygame.K_i,
             'down': pygame.K_k,
-            'attack': pygame.K_u,      # One attack button
+            'attack': pygame.K_RSHIFT,      # One attack button
             'grab': pygame.K_o
         }
         
