@@ -240,7 +240,7 @@ class StageSelectState(GameState):
         stage = self.stages[selected_index]
         
         # Details panel
-        panel_rect = pygame.Rect(100, 500, 1080, 150)
+        panel_rect = pygame.Rect(100, 500, 1080, 170)
         pygame.draw.rect(screen, (40, 45, 60), panel_rect)
         pygame.draw.rect(screen, (255, 255, 255), panel_rect, 2)
         
