@@ -112,7 +112,7 @@ class CharacterSelectState(GameState):
                 if self.player1_selection is None:
                     self.player1_cursor = (self.player1_cursor + 1) % len(self.characters)
                     self.play_navigate_sound()
-            elif event.key == pygame.K_q:  # Confirm/Select
+            elif event.key == pygame.K_LSHIFT:  # Confirm/Select
                 if self.player1_selection is None:
                     self.player1_selection = self.player1_cursor
                     self.play_confirm_sound()
@@ -120,15 +120,15 @@ class CharacterSelectState(GameState):
                     self.check_both_selected()
             
             # Player 2 controls (IJKL + U)
-            elif event.key == pygame.K_j:  # Left
+            elif event.key == pygame.K_l:  # Left
                 if self.player2_selection is None:
                     self.player2_cursor = (self.player2_cursor - 1) % len(self.characters)
                     self.play_navigate_sound()
-            elif event.key == pygame.K_l:  # Right
+            elif event.key == pygame.K_QUOTE:  # Right
                 if self.player2_selection is None:
                     self.player2_cursor = (self.player2_cursor + 1) % len(self.characters)
                     self.play_navigate_sound()
-            elif event.key == pygame.K_u:  # Confirm/Select
+            elif event.key == pygame.K_RSHIFT:  # Confirm/Select
                 if self.player2_selection is None:
                     self.player2_selection = self.player2_cursor
                     self.play_confirm_sound()

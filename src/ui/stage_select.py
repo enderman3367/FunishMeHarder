@@ -98,10 +98,10 @@ class StageSelectState(GameState):
         if event.type == pygame.KEYDOWN:
             if self.confirmed_selection is None:
                 # Player 1 controls only
-                if event.key == pygame.K_a:  # Left
+                if event.key == pygame.K_LEFT:  # Left
                     self.current_selection = (self.current_selection - 1) % len(self.stages)
                     self.play_navigate_sound()
-                elif event.key == pygame.K_d:  # Right
+                elif event.key == pygame.K_RIGHT:  # Right
                     self.current_selection = (self.current_selection + 1) % len(self.stages)
                     self.play_navigate_sound()
                 elif event.key == pygame.K_SPACE:  # Confirm
