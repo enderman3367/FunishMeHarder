@@ -618,7 +618,7 @@ class SimpleMenuState(GameState):
         hint_font = pygame.font.Font(None, 20)
         
         # Title
-        title = font.render("SUPER SMASH FIGHTERS", True, (255, 255, 255))
+        title = font.render("SUPER SCUFFED FIGHTERS", True, (255, 255, 255))
         title_rect = title.get_rect(center=(640, 200))
         screen.blit(title, title_rect)
         

@@ -19,7 +19,7 @@ def main():
     """
     Main function to initialize and run the game
     """
-    print("Starting Super Smash Fighters...")
+    print("Starting Super Scuffed Fighters...")
     
     # Initialize pygame
     pygame.init()
@@ -29,7 +29,7 @@ def main():
         (1280, 720),  # Fixed 720p resolution for consistent gameplay
         pygame.SCALED
     )
-    pygame.display.set_caption("Super Smash Fighters")
+    pygame.display.set_caption("Super Scuffed Fighters")
     
     # Create game engine and initialize all systems
     game_engine = GameEngine()

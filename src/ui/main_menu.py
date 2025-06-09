@@ -245,7 +245,7 @@ class MainMenuState(GameState):
         """
         # TODO: Create title surface with proper font
         # For now, use placeholder
-        title_text = "SUPER SMASH FIGHTERS"
+        title_text = "SUPER SCUFFED FIGHTERS"
         
         # TODO: Calculate pulsing scale based on timer
         # pulse_scale = 1.0 + 0.1 * math.sin(self.title_pulse_timer * 2)
