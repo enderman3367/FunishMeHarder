@@ -228,7 +228,7 @@ class Heavy(Character):
             'height': 80,
             'damage': self.ground_pound_attack_data['damage'],
             'knockback': self.ground_pound_attack_data['knockback'],
-            'knockback_angle': -60,  # Upward angle
+            'knockback_angle': 45,  # Upward angle
             'owner': self,
             'frames_remaining': 10, # Short duration shockwave
             'attack_type': 'ground_pound',
