@@ -200,10 +200,10 @@ class InputManager:
         
         # Smash-style controls for Player 2
         self.player2_keys = {
-            'left': pygame.K_j,
-            'right': pygame.K_l,
-            'up': pygame.K_i,
-            'down': pygame.K_k,
+            'left': pygame.K_l,
+            'right': pygame.K_QUOTE,
+            'up': pygame.K_p,
+            'down': pygame.K_SEMICOLON,
             'attack': pygame.K_RSHIFT,      # One attack button
             'grab': pygame.K_o
         }
