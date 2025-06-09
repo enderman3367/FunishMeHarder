@@ -170,7 +170,7 @@ class Plains(Stage):
         
         side_platform_width = 120    # Smaller than Battlefield for less camping
         side_platform_height = 18    # Thinner to feel less substantial
-        side_platform_y = main_platform_y - 100  # Lowered for even easier access
+        side_platform_y = main_platform_y - 120  # Lower than Battlefield (less vertical play)
         
         # Left side platform (far from center)
         left_platform_x = main_platform_x + 80  # Further inset than Battlefield
