@@ -30,7 +30,7 @@ class Speedster(Character):
     
     Special Moves:
     - Side Special: Lightning Dash - Super-fast horizontal movement with multi-hits
-    - Up Special: Whirlwind - Multi-directional spinning recovery
+    - Up Special: Whirlwind Flight - Ascend for a short duration
     - Down Special: Speed Boost - Temporary speed increase with afterimages
     - Neutral Special: Sonic Boom - Fast-moving shockwave projectile
     """
@@ -74,10 +74,12 @@ class Speedster(Character):
         self.sonic_boom_speed = 12
         self.sonic_boom_damage = 6
         
-        # Flight ability
-        self.is_flying = False
-        self.flight_duration = 0.5  # seconds
-        self.flight_timer = 0.0
+        # Up Special: Whirlwind Flight
+        self.up_special_cooldown = 0
+        self.up_special_cooldown_duration = 600  # 10 seconds at 60fps
+        self.is_flying_up = False
+        self.flight_timer = 0
+        self.flight_max_duration = 120  # 2 seconds at 60fps
         
         # Character name and description
         self.name = "Speedster"
@@ -98,23 +100,14 @@ class Speedster(Character):
     
     def perform_up_special(self):
         """
-        Whirlwind - Multi-directional recovery
-        
-        TODO:
-        - Allow directional input during move
-        - Create spinning hitbox around character
-        - Good distance in chosen direction
-        - Multiple hits with decent knockback
-        - Can change direction mid-move
-        """
-        if not self.can_act:
-            return
+        Whirlwind Flight - Ascend as long as the button is held.
 
-        self.is_flying = True
-        self.flight_timer = self.flight_duration
-        self.change_state(CharacterState.UP_SPECIAL)
-        self.can_act = False
-        self.velocity[1] = 0  # Stop vertical movement before flying
+        This logic is handled in `perform_attack` and `update`.
+        - Allows vertical flight for up to 2 seconds.
+        - Has a 10-second cooldown.
+        - Creates a continuous weak hitbox during flight.
+        """
+        pass
     
     def perform_down_special(self):
         """
@@ -209,19 +202,33 @@ class Speedster(Character):
             momentum = 4 if self.facing_right else -4
             self.velocity[0] += momentum
         elif direction == 'up':
-            # Multi-hit tornado spin
+            # Up special: Whirlwind Flight
+            if self.up_special_cooldown > 0:
+                return
+
             self.change_state(CharacterState.UP_SPECIAL)
+            self.is_flying_up = True
+            self.flight_timer = self.flight_max_duration
+            self.up_special_cooldown = self.up_special_cooldown_duration
+            
+            self.is_attacking = True
+            self.can_act = False
+            self.attack_state_frames = 0
+            
+            # This attack allows flight, it has a continuous hitbox while active
             self.current_attack = {
-                'type': 'tornado_spin',
+                'type': 'whirlwind_flight',
                 'startup_frames': 5,
-                'active_frames': 12,  # Long active frames for multi-hit
-                'recovery_frames': 8,
-                'damage': 4,  # Lower damage per hit, but hits multiple times
-                'knockback': 8,
-                'range': 55,
+                'active_frames': self.flight_max_duration,
+                'recovery_frames': 5,
+                'damage': 2,
+                'knockback': 3,
+                'range': 60,
                 'is_multihit': True,
-                'hit_interval': 4  # Hit every 4 frames
+                'hit_interval': 10,
+                'knockback_angle': -90
             }
+            self.attack_hitbox_created = False
         elif direction == 'down':
             # Speed boost buff (doesn't damage, but enhances next attacks)
             self.change_state(CharacterState.DOWN_SPECIAL)
@@ -314,39 +321,26 @@ class Speedster(Character):
     
     def update(self, delta_time, player_input, stage):
         """
-        Override update to handle speed boost and multi-hit attacks
+        Override update to handle speed boost, multi-hit attacks, and whirlwind flight.
         """
+        if self.up_special_cooldown > 0:
+            self.up_special_cooldown -= 1
+
+        if self.is_flying_up:
+            if player_input.is_pressed('attack') and self.flight_timer > 0:
+                self.velocity[1] = -self.air_speed
+                self.flight_timer -= 1
+                self.on_ground = False
+                self.change_state(CharacterState.UP_SPECIAL)
+            else:
+                self.is_flying_up = False
+                self.end_attack()
+
         # Handle speed boost timer
         if self.speed_boost_active:
             self.speed_boost_timer -= 1
             if self.speed_boost_timer <= 0:
                 self.end_speed_boost()
-
-        # Handle flight
-        if self.is_flying:
-            self.flight_timer -= delta_time
-            if self.flight_timer <= 0:
-                self.is_flying = False
-                self.can_act = True
-            else:
-                # Allow controlled flight
-                self.velocity[1] = 0
-                if player_input.is_pressed('up'):
-                    self.velocity[1] = -self.jump_strength / 2
-                if player_input.is_pressed('down'):
-                    self.velocity[1] = self.jump_strength / 2
-
-                self.velocity[0] = player_input.get_horizontal_axis() * self.air_speed
-                
-                # The actual position update will be handled by the physics manager
-                # We just set the velocity here.
-                # We also need to prevent gravity from affecting the character during flight.
-                # This is a bit of a hack, but we can set the character's weight to 0 during flight.
-                self.weight = 0
-
-        else:
-            # Reset weight when not flying
-            self.weight = 0.7
         
         # Call parent update
         super().update(delta_time, player_input, stage)
@@ -403,7 +397,7 @@ class Speedster(Character):
         
         # Multi-hit attack visual effect
         for hitbox in self.active_hitboxes:
-            if hitbox.get('attack_type') == 'tornado_spin':
+            if hitbox.get('attack_type') == 'tornado_spin' or hitbox.get('attack_type') == 'whirlwind_flight':
                 # Draw spinning effect around character
                 screen_x = self.position[0] - camera_offset[0]
                 screen_y = self.position[1] - camera_offset[1]
@@ -445,7 +439,7 @@ class Speedster(Character):
             ],
             "special_moves": {
                 "side": "Lightning Dash",
-                "up": "Whirlwind",
+                "up": "Whirlwind Flight",
                 "down": "Speed Boost",
                 "neutral": "Sonic Boom"
             }

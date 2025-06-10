@@ -58,6 +58,10 @@ class StageSelectState(GameState):
         self.confirmed_selection = None
         self.transition_timer = 0.0
         
+        # Joystick navigation helpers
+        self.last_joy_move_time = 0
+        self.joy_move_delay = 200 # milliseconds
+        
         # Visual properties
         self.stage_box_width = 400
         self.stage_box_height = 300
@@ -95,28 +99,59 @@ class StageSelectState(GameState):
         """
         Handle stage select input events
         """
+        if self.confirmed_selection is not None:
+            return False
+
+        input_manager = self.game_engine.get_input_manager()
+
+        # --- Handle Keyboard Input (Player 1 Only) ---
         if event.type == pygame.KEYDOWN:
-            if self.confirmed_selection is None:
-                # Player 1 controls only
-                if event.key == pygame.K_f:  # Left
-                    self.current_selection = (self.current_selection - 1) % len(self.stages)
-                    self.play_navigate_sound()
-                elif event.key == pygame.K_j:  # Right
-                    self.current_selection = (self.current_selection + 1) % len(self.stages)
-                    self.play_navigate_sound()
-                elif event.key == pygame.K_SPACE:  # Confirm
-                    self.confirmed_selection = self.current_selection
-                    self.transition_timer = 1.0
-                    self.play_confirm_sound()
-                    print(f"Selected stage: {self.stages[self.confirmed_selection]['name']}")
-            
-            # Global controls
-            if event.key == pygame.K_ESCAPE:
-                # Go back to character select
+            if event.key == pygame.K_a or event.key == pygame.K_f:
+                self.move_cursor(-1)
+            elif event.key == pygame.K_d or event.key == pygame.K_j:
+                self.move_cursor(1)
+            elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE or event.key == pygame.K_LSHIFT:
+                self.confirm_selection()
+            elif event.key == pygame.K_ESCAPE:
                 self.state_manager.change_state(GameStateType.CHARACTER_SELECT)
-                return True
+            return True
+
+        # --- Handle Joystick Input (Player 1 Only) ---
+        player_id = input_manager.get_player_id_from_joystick(event.instance_id) if hasattr(event, 'instance_id') else None
         
+        if player_id != 1:
+            return False
+
+        if event.type == pygame.JOYBUTTONDOWN:
+            if event.button == 1: # P1 Attack button
+                self.confirm_selection()
+                return True
+
+        if event.type == pygame.JOYAXISMOTION:
+            if event.axis == 0: # Horizontal axis for L Joy-Con
+                current_time = pygame.time.get_ticks()
+                if current_time - self.last_joy_move_time > self.joy_move_delay:
+                    if event.value < -0.5: # Left
+                        self.move_cursor(-1)
+                        self.last_joy_move_time = current_time
+                    elif event.value > 0.5: # Right
+                        self.move_cursor(1)
+                        self.last_joy_move_time = current_time
+                    return True
+
         return False
+
+    def move_cursor(self, direction):
+        """Move the selection cursor."""
+        self.current_selection = (self.current_selection + direction) % len(self.stages)
+        self.play_navigate_sound()
+
+    def confirm_selection(self):
+        """Confirm the stage selection."""
+        self.confirmed_selection = self.current_selection
+        self.transition_timer = 1.0
+        self.play_confirm_sound()
+        print(f"Selected stage: {self.stages[self.confirmed_selection]['name']}")
     
     def play_navigate_sound(self):
         """

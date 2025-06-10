@@ -595,6 +595,7 @@ class SimpleMenuState(GameState):
         self.menu_options = ["Start Game", "Quit"]
     
     def handle_event(self, event):
+        # Handle Keyboard Input
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP or event.key == pygame.K_w:
                 self.selected_option = (self.selected_option - 1) % len(self.menu_options)
@@ -603,12 +604,33 @@ class SimpleMenuState(GameState):
                 self.selected_option = (self.selected_option + 1) % len(self.menu_options)
                 return True
             elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                if self.selected_option == 0:  # Start Game
-                    self.state_manager.change_state(GameStateType.CHARACTER_SELECT)
-                elif self.selected_option == 1:  # Quit
-                    pygame.event.post(pygame.event.Event(pygame.QUIT))
+                self.select_option()
                 return True
+        
+        # Handle Joystick Input
+        if event.type == pygame.JOYBUTTONDOWN:
+            # P1 Attack button confirms selection
+            if event.button == 3: # Corresponds to dpad_right on L Joy-Con
+                self.select_option()
+                return True
+        
+        if event.type == pygame.JOYAXISMOTION:
+            # P1 Vertical stick navigates menu
+            if event.axis == 1 and abs(event.value) > 0.5:
+                if event.value < -0.5: # Up
+                    self.selected_option = (self.selected_option - 1) % len(self.menu_options)
+                elif event.value > 0.5: # Down
+                    self.selected_option = (self.selected_option + 1) % len(self.menu_options)
+                return True
+                
         return False
+
+    def select_option(self):
+        """Action when a menu option is selected."""
+        if self.selected_option == 0:  # Start Game
+            self.state_manager.change_state(GameStateType.CHARACTER_SELECT)
+        elif self.selected_option == 1:  # Quit
+            pygame.event.post(pygame.event.Event(pygame.QUIT))
     
     def render(self, screen):
         screen.fill((20, 20, 40))
