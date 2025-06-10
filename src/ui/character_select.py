@@ -23,6 +23,7 @@ from src.characters.warrior import Warrior
 from src.characters.speedster import Speedster
 from src.characters.heavy import Heavy
 from enum import Enum
+from src.input.input_manager import InputManager
 
 class SelectionState(Enum):
     """
@@ -337,10 +338,12 @@ class CharacterSelectState(GameState):
         """
         Render control hints for both players
         """
+        myinputmanager = InputManager()
+
         # Player 1 controls (left side)
         p1_hints = [
             "Player 1 Controls:",
-            "WASD - Move cursor",
+            f"{(pygame.key.name(myinputmanager.player1_keys['up'])).upper()}{pygame.key.name(myinputmanager.player1_keys['left']).upper()}{pygame.key.name(myinputmanager.player1_keys['down']).upper()}{pygame.key.name(myinputmanager.player1_keys['right']).upper()} - Move cursor",
             "LSHIFT - Select/Confirm",
             "ESC - Back to menu"
         ]
