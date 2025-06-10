@@ -38,6 +38,24 @@ Fighting Game Input Concepts:
 import pygame
 from enum import Enum
 
+# Define constants for Joy-Con button mappings to make code more readable
+# These may need adjustment depending on the OS and Pygame/SDL version
+JOYCON_L_BUTTON_MAP = {
+    "dpad_up": 0,
+    "dpad_down": 1,
+    "dpad_left": 2,
+    "dpad_right": 3,
+    "sl": 4,
+    "sr": 5,
+    "minus": 8,
+    "stick": 10,
+    "capture": 13,
+    "l": 14,
+    "zl": 15,
+}
+
+AXIS_THRESHOLD = 0.5  # Deadzone for analog sticks
+
 class InputAction(Enum):
     """
     All possible input actions in the game
@@ -80,6 +98,7 @@ class PlayerInput:
         # Direction input for analog-style movement
         self.horizontal_axis = 0.0  # -1.0 to 1.0
         self.vertical_axis = 0.0    # -1.0 to 1.0
+        self.joystick = None
     
     def update(self, key_states, key_mapping):
         """
@@ -113,6 +132,47 @@ class PlayerInput:
         self.input_buffer.append(self.current_inputs.copy())
         if len(self.input_buffer) > self.buffer_size:
             self.input_buffer.pop(0)
+    
+    def update_from_joystick(self, joy_mapping, axis_map={'h': 0, 'v': 1}):
+        """
+        Update input state based on current joystick state
+        """
+        if not self.joystick:
+            return
+
+        self.previous_inputs = self.current_inputs.copy()
+
+        # Update directional axes from joystick based on user logs.
+        # Axis 0 is horizontal, Axis 1 is vertical.
+        self.horizontal_axis = self.joystick.get_axis(0)
+        self.vertical_axis = self.joystick.get_axis(1)
+
+        # Apply deadzone
+        if abs(self.horizontal_axis) < AXIS_THRESHOLD:
+            self.horizontal_axis = 0.0
+        if abs(self.vertical_axis) < AXIS_THRESHOLD:
+            self.vertical_axis = 0.0
+
+        # Update current inputs from joystick axes
+        self.current_inputs['left'] = self.horizontal_axis < -AXIS_THRESHOLD
+        self.current_inputs['right'] = self.horizontal_axis > AXIS_THRESHOLD
+        self.current_inputs['up'] = self.vertical_axis < -AXIS_THRESHOLD
+        self.current_inputs['down'] = self.vertical_axis > AXIS_THRESHOLD
+        
+        # Update buttons from joystick
+        self.current_inputs['attack'] = self.joystick.get_button(joy_mapping['attack'])
+        self.current_inputs['grab'] = self.joystick.get_button(joy_mapping['grab'])
+
+        # Add current frame to input buffer
+        self.input_buffer.append(self.current_inputs.copy())
+        if len(self.input_buffer) > self.buffer_size:
+            self.input_buffer.pop(0)
+
+    def assign_joystick(self, joystick):
+        self.joystick = joystick
+
+    def unassign_joystick(self):
+        self.joystick = None
     
     def is_pressed(self, action):
         """
@@ -186,9 +246,9 @@ class InputManager:
     
     def __init__(self):
         """
-        Initialize the input manager with Smash-style key mappings
+        Initialize the input manager with keyboard and single Joy-Con support.
         """
-        # Smash-style controls for Player 1
+        # --- Keyboard Mappings ---
         self.player1_keys = {
             'left': pygame.K_a,
             'right': pygame.K_d,
@@ -198,7 +258,6 @@ class InputManager:
             'grab': pygame.K_e
         }
         
-        # Smash-style controls for Player 2
         self.player2_keys = {
             'left': pygame.K_l,
             'right': pygame.K_QUOTE,
@@ -208,6 +267,18 @@ class InputManager:
             'grab': pygame.K_o
         }
         
+        # --- Joystick Mappings (Left Joy-Con held sideways) ---
+        self.player1_joy_map = {
+            'attack': JOYCON_L_BUTTON_MAP['dpad_down'], # Remapped to physical "down" button
+            'grab': JOYCON_L_BUTTON_MAP['sl']
+        }
+
+        # --- Joystick Mappings (Xbox Controller) ---
+        self.player2_xbox_map = {
+            'attack': 0, # A button
+            'grab': 2    # X button
+        }
+
         # Global keys
         self.global_keys = {
             'pause': pygame.K_ESCAPE
@@ -217,6 +288,12 @@ class InputManager:
         self.player1_input = PlayerInput()
         self.player2_input = PlayerInput()
         
+        # Joystick handling
+        pygame.joystick.init()
+        self.joysticks = {}
+        self.player1_joy_id = None
+        self.player2_joy_id = None
+
         # Current keyboard state
         self.keys_pressed = pygame.key.get_pressed()
         
@@ -224,18 +301,75 @@ class InputManager:
         self.pause_pressed = False
         self.pause_just_pressed = False
     
+    def assign_players_to_joysticks(self):
+        """Assigns players to available joysticks."""
+        p1_assigned = self.player1_joy_id is not None
+        p2_assigned = self.player2_joy_id is not None
+
+        for instance_id, joy in self.joysticks.items():
+            name = joy.get_name()
+            if "Joy-Con (L)" in name and not p1_assigned:
+                self.assign_joystick_to_player(instance_id, 1)
+                p1_assigned = True
+            elif "Xbox" in name and not p2_assigned:
+                self.assign_joystick_to_player(instance_id, 2)
+                p2_assigned = True
+
+    def assign_joystick_to_player(self, instance_id, player_id):
+        """Assigns a joystick to a player."""
+        joystick = self.joysticks.get(instance_id)
+        if not joystick:
+            print(f"Warning: Tried to assign non-existent joystick with instance ID {instance_id}")
+            return
+
+        if player_id == 1:
+            if self.player1_joy_id is not None:
+                self.player1_input.unassign_joystick()
+            self.player1_joy_id = instance_id
+            self.player1_input.assign_joystick(joystick)
+            print(f"Assigned joystick '{joystick.get_name()}' to Player 1")
+        elif player_id == 2:
+            if self.player2_joy_id is not None:
+                self.player2_input.unassign_joystick()
+            self.player2_joy_id = instance_id
+            self.player2_input.assign_joystick(joystick)
+            print(f"Assigned joystick '{joystick.get_name()}' to Player 2")
+
+    def unassign_joystick_from_player(self, instance_id):
+        """Unassigns a joystick from a player."""
+        if self.player1_joy_id == instance_id:
+            self.player1_input.unassign_joystick()
+            self.player1_joy_id = None
+            print(f"Unassigned joystick from Player 1")
+        elif self.player2_joy_id == instance_id:
+            self.player2_input.unassign_joystick()
+            self.player2_joy_id = None
+            print(f"Unassigned joystick from Player 2")
+            
     def handle_event(self, event):
         """
         Handle pygame input events for immediate response actions
         """
         if event.type == pygame.KEYDOWN:
-            # Handle global pause
             if event.key == self.global_keys['pause']:
                 self.pause_just_pressed = True
         elif event.type == pygame.KEYUP:
             if event.key == self.global_keys['pause']:
                 self.pause_just_pressed = False
-    
+        
+        elif event.type == pygame.JOYDEVICEADDED:
+            joy = pygame.joystick.Joystick(event.device_index)
+            instance_id = joy.get_instance_id()
+            self.joysticks[instance_id] = joy
+            print(f"Joystick connected: {joy.get_name()}")
+            self.assign_players_to_joysticks()
+        
+        elif event.type == pygame.JOYDEVICEREMOVED:
+            print(f"Joystick disconnected (Instance ID: {event.instance_id})")
+            if event.instance_id in self.joysticks:
+                del self.joysticks[event.instance_id]
+            self.unassign_joystick_from_player(event.instance_id)
+
     def update(self):
         """
         Update input system each frame
@@ -262,8 +396,17 @@ class InputManager:
         self.pause_pressed = self.keys_pressed[self.global_keys['pause']]
         
         # Update player inputs
-        self.player1_input.update(self.keys_pressed, self.player1_keys)
-        self.player2_input.update(self.keys_pressed, self.player2_keys)
+        # Player 1 uses joystick if available, otherwise keyboard
+        if self.player1_joy_id is not None:
+            self.player1_input.update_from_joystick(self.player1_joy_map)
+        else:
+            self.player1_input.update(self.keys_pressed, self.player1_keys)
+        
+        # Player 2 uses joystick if available, otherwise keyboard
+        if self.player2_joy_id is not None:
+            self.player2_input.update_from_joystick(self.player2_xbox_map)
+        else:
+            self.player2_input.update(self.keys_pressed, self.player2_keys)
     
     def get_player_input(self, player_id):
         """
@@ -275,6 +418,16 @@ class InputManager:
             return self.player2_input
         else:
             raise ValueError(f"Invalid player_id: {player_id}. Must be 1 or 2.")
+    
+    def get_player_id_from_joystick(self, instance_id):
+        """
+        Returns the player ID (1 or 2) associated with a joystick instance ID.
+        """
+        if instance_id == self.player1_joy_id:
+            return 1
+        if instance_id == self.player2_joy_id:
+            return 2
+        return None
     
     def is_pause_pressed(self):
         """

@@ -68,6 +68,10 @@ class CharacterSelectState(GameState):
         self.grid_start_x = 640 - (len(self.characters) * (self.character_box_width + self.character_spacing) - self.character_spacing) // 2
         self.grid_y = 200
         
+        # Joystick navigation helpers
+        self.last_joy_move_time = 0
+        self.joy_move_delay = 200 # milliseconds
+        
         # Colors
         self.player1_color = (255, 100, 100)  # Red
         self.player2_color = (100, 150, 255)  # Blue
@@ -103,46 +107,78 @@ class CharacterSelectState(GameState):
         """
         Handle character select input events
         """
+        if self.current_state != SelectionState.SELECTING:
+            return False
+
+        input_manager = self.game_engine.get_input_manager()
+
+        # --- Handle Keyboard Input ---
         if event.type == pygame.KEYDOWN:
-            # Player 1 controls (WASD + Q)
-            if event.key == pygame.K_a:  # Left
-                if self.player1_selection is None:
-                    self.player1_cursor = (self.player1_cursor - 1) % len(self.characters)
-                    self.play_navigate_sound()
-            elif event.key == pygame.K_d:  # Right
-                if self.player1_selection is None:
-                    self.player1_cursor = (self.player1_cursor + 1) % len(self.characters)
-                    self.play_navigate_sound()
-            elif event.key == pygame.K_LSHIFT:  # Confirm/Select
-                if self.player1_selection is None:
-                    self.player1_selection = self.player1_cursor
-                    self.play_confirm_sound()
-                    print(f"Player 1 selected {self.characters[self.player1_selection]['name']}")
-                    self.check_both_selected()
+            # Player 1 controls
+            if event.key == pygame.K_a: self.move_cursor(1, -1)
+            elif event.key == pygame.K_d: self.move_cursor(1, 1)
+            elif event.key == pygame.K_LSHIFT: self.confirm_selection(1)
             
-            # Player 2 controls (IJKL + U)
-            elif event.key == pygame.K_l:  # Left
-                if self.player2_selection is None:
-                    self.player2_cursor = (self.player2_cursor - 1) % len(self.characters)
-                    self.play_navigate_sound()
-            elif event.key == pygame.K_QUOTE:  # Right
-                if self.player2_selection is None:
-                    self.player2_cursor = (self.player2_cursor + 1) % len(self.characters)
-                    self.play_navigate_sound()
-            elif event.key == pygame.K_RSHIFT:  # Confirm/Select
-                if self.player2_selection is None:
-                    self.player2_selection = self.player2_cursor
-                    self.play_confirm_sound()
-                    print(f"Player 2 selected {self.characters[self.player2_selection]['name']}")
-                    self.check_both_selected()
+            # Player 2 controls
+            elif event.key == pygame.K_l: self.move_cursor(2, -1)
+            elif event.key == pygame.K_QUOTE: self.move_cursor(2, 1)
+            elif event.key == pygame.K_RSHIFT: self.confirm_selection(2)
             
-            # Global controls
+            # Global
             elif event.key == pygame.K_ESCAPE:
-                # Go back to main menu
                 self.state_manager.change_state(GameStateType.MAIN_MENU)
+            
+            return True
+
+        # --- Handle Joystick Input ---
+        player_id = input_manager.get_player_id_from_joystick(event.instance_id) if hasattr(event, 'instance_id') else None
+        
+        if player_id is None:
+            return False
+
+        if event.type == pygame.JOYBUTTONDOWN:
+            # Player 1 (Joy-Con) uses button 1; Player 2 (Xbox) uses button 0
+            attack_button = 1 if player_id == 1 else 0
+            if event.button == attack_button:
+                self.confirm_selection(player_id)
                 return True
         
+        if event.type == pygame.JOYAXISMOTION:
+            # Both controllers use axis 0 for left/right navigation
+            if event.axis == 0:
+                current_time = pygame.time.get_ticks()
+                if current_time - self.last_joy_move_time > self.joy_move_delay:
+                    if event.value < -0.5: # Left
+                        self.move_cursor(player_id, -1)
+                        self.last_joy_move_time = current_time
+                    elif event.value > 0.5: # Right
+                        self.move_cursor(player_id, 1)
+                        self.last_joy_move_time = current_time
+                    return True
+
         return False
+
+    def move_cursor(self, player, direction):
+        """Move a player's cursor."""
+        if player == 1 and self.player1_selection is None:
+            self.player1_cursor = (self.player1_cursor + direction) % len(self.characters)
+            self.play_navigate_sound()
+        elif player == 2 and self.player2_selection is None:
+            self.player2_cursor = (self.player2_cursor + direction) % len(self.characters)
+            self.play_navigate_sound()
+
+    def confirm_selection(self, player):
+        """Confirm a player's selection."""
+        if player == 1 and self.player1_selection is None:
+            self.player1_selection = self.player1_cursor
+            self.play_confirm_sound()
+            print(f"Player 1 selected {self.characters[self.player1_selection]['name']}")
+        elif player == 2 and self.player2_selection is None:
+            self.player2_selection = self.player2_cursor
+            self.play_confirm_sound()
+            print(f"Player 2 selected {self.characters[self.player2_selection]['name']}")
+        
+        self.check_both_selected()
     
     def check_both_selected(self):
         """

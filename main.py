@@ -2,6 +2,7 @@
 Brawl Bros Game - Main Entry Point
 ========================================
 
+
 Main entry point for the game. This file handles:
 - Game initialization with pygame setup
 - Main game loop with fixed timestep physics
@@ -44,9 +45,13 @@ def main():
     
     print("Game initialized successfully!")
     print("Controls:")
-    print("Player 1: WASD to move, LSHIFT+direction for attacks")
-    print("Player 2: PL;' to move, RSHIFT+direction for attacks")
-    print("Attack Types: No direction=Neutral, Side=Strong, Up=Launcher, Down=Spike")
+    print("Player 1: Left Joy-Con (Sideways) or WASD.")
+    print("  - Joy-Con: Stick to move, 'Down' D-Pad button for attack.")
+    print("  - Keyboard: WASD to move, LSHIFT for attack.")
+    print("Player 2: Xbox Controller or Keyboard.")
+    print("  - Controller: Left Stick to move, 'A' button for attack.")
+    print("  - Keyboard: PL;' to move, RSHIFT for attack.")
+    print("---")
     print("F3=Debug Mode, R=Reset Match, ESC=Menu")
     
     # Main game loop
