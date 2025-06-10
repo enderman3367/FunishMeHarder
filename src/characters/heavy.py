@@ -356,7 +356,7 @@ class Heavy(Character):
                 self.width + 10,
                 self.height + 10
             )
-            pygame.draw.rect(screen, (255, 215, 0), armor_rect, 3)  # Gold outline
+            pygame.draw.rect(screen, (255, 255, 255), armor_rect, 3)  # Gold outline
         
         # Power stance visual effect
         if self.power_stance_active:
