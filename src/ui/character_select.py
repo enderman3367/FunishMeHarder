@@ -333,7 +333,6 @@ class CharacterSelectState(GameState):
         for i, stat in enumerate(stats):
             stat_text = self.hint_font.render(stat, True, (200, 200, 200))
             screen.blit(stat_text, (x + 15, y + 115 + i * 18))
-    
 
     def render_control_hints(self, screen):
         """
