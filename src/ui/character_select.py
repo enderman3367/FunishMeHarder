@@ -334,17 +334,26 @@ class CharacterSelectState(GameState):
             stat_text = self.hint_font.render(stat, True, (200, 200, 200))
             screen.blit(stat_text, (x + 15, y + 115 + i * 18))
     
+
     def render_control_hints(self, screen):
         """
         Render control hints for both players
         """
         myinputmanager = InputManager()
+<<<<<<< HEAD
 
+=======
+        # player1_keys = input_manager.player1_keys
+>>>>>>> 722ef0b76f3205fbeb3415388754bd9e49ff0fb6
         # Player 1 controls (left side)
         p1_hints = [
             "Player 1 Controls:",
             f"{(pygame.key.name(myinputmanager.player1_keys['up'])).upper()}{pygame.key.name(myinputmanager.player1_keys['left']).upper()}{pygame.key.name(myinputmanager.player1_keys['down']).upper()}{pygame.key.name(myinputmanager.player1_keys['right']).upper()} - Move cursor",
+<<<<<<< HEAD
             "LSHIFT - Select/Confirm",
+=======
+            "Q - Select/Confirm",
+>>>>>>> 722ef0b76f3205fbeb3415388754bd9e49ff0fb6
             "ESC - Back to menu"
         ]
         
