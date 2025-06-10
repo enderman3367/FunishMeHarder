@@ -343,8 +343,8 @@ class CharacterSelectState(GameState):
         # Player 1 controls (left side)
         p1_hints = [
             "Player 1 Controls:",
-            f"{(pygame.key.name(myinputmanager.player1_keys['up'])).upper()}{pygame.key.name(myinputmanager.player1_keys['left']).upper()}{pygame.key.name(myinputmanager.player1_keys['down']).upper()}{pygame.key.name(myinputmanager.player1_keys['right']).upper()} - Move cursor",
-            "Q - Select/Confirm",
+            f"{(pygame.key.name(myinputmanager.player1_keys['up'])).upper()}{pygame.key.name(myinputmanager.player1_keys['left']).upper()}{pygame.key.name(myinputmanager.player1_keys['down']).upper()}{pygame.key.name(myinputmanager.player1_keys['right']).upper()} - Move",
+            f"{(pygame.key.name(myinputmanager.player1_keys['attack']).upper())} - Select/Confirm; Attack",
             "ESC - Back to menu"
         ]
         
@@ -356,8 +356,9 @@ class CharacterSelectState(GameState):
         # Player 2 controls (right side)
         p2_hints = [
             "Player 2 Controls:",
-            "PL;' - Move cursor", 
-            "RSHIFT - Select/Confirm"
+            f"{(pygame.key.name(myinputmanager.player2_keys['up'])).upper()}{pygame.key.name(myinputmanager.player2_keys['left']).upper()}{pygame.key.name(myinputmanager.player2_keys['down']).upper()}{pygame.key.name(myinputmanager.player2_keys['right']).upper()} - Move",
+            f"{(pygame.key.name(myinputmanager.player2_keys['attack']).upper())} - Select/Confirm; Attack",
+            "ESC - Back to menu"
         ]
         
         for i, hint in enumerate(p2_hints):
