@@ -117,7 +117,7 @@ class CharacterSelectState(GameState):
             # Player 1 controls
             if event.key == pygame.K_a: self.move_cursor(1, -1)
             elif event.key == pygame.K_d: self.move_cursor(1, 1)
-            elif event.key == pygame.K_q: self.confirm_selection(1)
+            elif event.key == pygame.K_LSHIFT: self.confirm_selection(1)
             
             # Player 2 controls
             elif event.key == pygame.K_l: self.move_cursor(2, -1)
