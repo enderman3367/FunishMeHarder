@@ -528,8 +528,8 @@ class GameplayState(GameState):
         # Control hints (only in debug mode)
         if self.game_engine.debug_mode:
             instructions = [
-                "Player 1: WASD to move, Q+direction = attack types",
-                "Player 2: IJKL to move, U+direction = attack types", 
+                "Player 1: WASD to move, Left Shift+direction = attack types",
+                "Player 2: PL;' to move, Right Shift+direction = attack types",
                 "Attack types: No dir=Neutral, Side=Strong, Up=Launcher, Down=Spike",
                 "R=Reset, F3=Debug, ESC=Menu"
             ]
