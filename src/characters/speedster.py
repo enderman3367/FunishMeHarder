@@ -51,8 +51,16 @@ class Speedster(Character):
         self.max_health = 85  # Lower health for glass cannon
         self.current_health = self.max_health
         self.weight = 0.7  # Light weight, more knockback
-        self.walk_speed = 5.0  # Much faster than average
-        self.run_speed = 9.0   # Very fast running
+        
+        # NOTE: These have been updated to be faster than the base character
+        self.base_max_walk_speed = 10.0
+        self.base_max_run_speed = 16.0
+        self.base_ground_acceleration = 1.6
+        
+        self.max_walk_speed = self.base_max_walk_speed
+        self.max_run_speed = self.base_max_run_speed
+        self.ground_acceleration = self.base_ground_acceleration
+        
         self.jump_strength = 16.0  # High jumps
         self.air_speed = 6.0   # Excellent air mobility
         
@@ -80,6 +88,10 @@ class Speedster(Character):
         self.is_flying_up = False
         self.flight_timer = 0
         self.flight_max_duration = 120  # 2 seconds at 60fps
+        
+        # Side attack cooldown
+        self.side_attack_cooldown = 0
+        self.side_attack_cooldown_duration = 120 # 2 seconds at 60fps
         
         # Character name and description
         self.name = "Speedster"
@@ -186,14 +198,18 @@ class Speedster(Character):
                 'range': 50
             }
         elif direction == 'side':
+            if self.side_attack_cooldown > 0:
+                print("Side attack is on cooldown!")
+                return
+
             # Dash attack with movement
             self.change_state(CharacterState.HEAVY_ATTACK)
             self.current_attack = {
                 'type': 'dash_attack',
-                'startup_frames': 6,
+                'startup_frames': 1,
                 'active_frames': 8,
-                'recovery_frames': 10,
-                'damage': 9,
+                'recovery_frames': 1,
+                'damage': 15,
                 'knockback': 6,
                 'range': 65,
                 'has_movement': True
@@ -201,6 +217,7 @@ class Speedster(Character):
             # Add forward momentum during attack
             momentum = 4 if self.facing_right else -4
             self.velocity[0] += momentum
+            self.side_attack_cooldown = self.side_attack_cooldown_duration
         elif direction == 'up':
             # Up special: Whirlwind Flight
             if self.up_special_cooldown > 0:
@@ -296,15 +313,16 @@ class Speedster(Character):
         """
         Apply speed boost buff to the Speedster
         """
-        self.speed_boost_active = True
-        self.speed_boost_timer = self.current_attack['buff_duration']
-        
-        # Increase movement speeds
-        self.max_walk_speed *= 1.5
-        self.max_run_speed *= 1.5
-        self.ground_acceleration *= 1.3
-        
-        print("Speedster activated speed boost!")
+        if not self.speed_boost_active:
+            self.speed_boost_active = True
+            self.speed_boost_timer = self.current_attack['buff_duration']
+            
+            # Increase movement speeds from base values
+            self.max_walk_speed = self.base_max_walk_speed * 1.5
+            self.max_run_speed = self.base_max_run_speed * 1.5
+            self.ground_acceleration = self.base_ground_acceleration * 1.3
+            
+            print("Speedster activated speed boost!")
     
     def get_speedster_knockback_angle(self):
         """
@@ -325,6 +343,9 @@ class Speedster(Character):
         """
         if self.up_special_cooldown > 0:
             self.up_special_cooldown -= 1
+        
+        if self.side_attack_cooldown > 0:
+            self.side_attack_cooldown -= 1
 
         if self.is_flying_up:
             if player_input.is_pressed('attack') and self.flight_timer > 0:
@@ -370,10 +391,10 @@ class Speedster(Character):
         """
         self.speed_boost_active = False
         
-        # Reset movement speeds to normal
-        self.max_walk_speed = 5.0  # Speedster's base speed
-        self.max_run_speed = 9.0
-        self.ground_acceleration = 0.4
+        # Reset movement speeds to base values
+        self.max_walk_speed = self.base_max_walk_speed
+        self.max_run_speed = self.base_max_run_speed
+        self.ground_acceleration = self.base_ground_acceleration
         
         print("Speedster speed boost ended")
     

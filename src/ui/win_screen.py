@@ -20,6 +20,7 @@ Controls:
 import pygame
 from src.core.state_manager import GameState, GameStateType
 from enum import Enum
+import os
 
 class WinScreenState(GameState):
     """
@@ -40,6 +41,16 @@ class WinScreenState(GameState):
         self.match_time = 0
         self.winner_damage = 0
         self.loser_damage = 0
+        
+        # Load character portraits
+        self.character_portraits = {}
+        char_names = ["Warrior", "Speedster", "Heavy"]
+        for name in char_names:
+            path = os.path.join('assets', 'images', 'portraits', f'{name}.png')
+            if os.path.exists(path):
+                self.character_portraits[name] = pygame.image.load(path).convert_alpha()
+            else:
+                self.character_portraits[name] = None
         
         # Animation state
         self.animation_timer = 0.0
@@ -232,16 +243,52 @@ class WinScreenState(GameState):
         pygame.draw.rect(screen, (40, 45, 60), panel_rect)
         pygame.draw.rect(screen, color, panel_rect, 3)
         
-        # Character portrait (colored rectangle)
-        portrait_rect = pygame.Rect(x + 20, y + 20, width - 40, height - 80)
-        character_colors = {
-            "Warrior": (200, 150, 100),
-            "Speedster": (255, 255, 100), 
-            "Heavy": (150, 100, 200)
-        }
-        portrait_color = character_colors.get(character, (150, 150, 150))
-        pygame.draw.rect(screen, portrait_color, portrait_rect)
-        pygame.draw.rect(screen, color, portrait_rect, 2)
+        # Character portrait
+        portrait = self.character_portraits.get(character)
+        if portrait:
+            target_width = width - 40
+            target_height = height - 80
+            original_width, original_height = portrait.get_size()
+
+            if original_height > 0 and target_height > 0:
+                original_aspect = original_width / original_height
+                target_aspect = target_width / target_height
+
+                if original_aspect > target_aspect:
+                    # Image is wider than target: scale by height
+                    new_height = target_height
+                    new_width = int(new_height * original_aspect)
+                    scaled_portrait = pygame.transform.scale(portrait, (new_width, new_height))
+                    crop_x = (new_width - target_width) // 2
+                    crop_y = 0
+                else:
+                    # Image is taller than target: scale by width
+                    new_width = target_width
+                    new_height = int(new_width / original_aspect)
+                    scaled_portrait = pygame.transform.scale(portrait, (new_width, new_height))
+                    crop_x = 0
+                    crop_y = (new_height - target_height) // 2
+                
+                crop_area = pygame.Rect(crop_x, crop_y, target_width, target_height)
+                cropped_portrait = scaled_portrait.subsurface(crop_area)
+                dest_rect = cropped_portrait.get_rect(center=(x + width // 2, y + (height - 60) // 2))
+                screen.blit(cropped_portrait, dest_rect)
+            else:
+                # Fallback to scaling if dimensions are unusual
+                portrait_scaled = pygame.transform.scale(portrait, (target_width, target_height))
+                portrait_rect = portrait_scaled.get_rect(center=(x + width // 2, y + (height - 60) // 2))
+                screen.blit(portrait_scaled, portrait_rect)
+        else:
+            # Character portrait (colored rectangle)
+            portrait_rect = pygame.Rect(x + 20, y + 20, width - 40, height - 80)
+            character_colors = {
+                "Warrior": (200, 150, 100),
+                "Speedster": (255, 255, 100), 
+                "Heavy": (150, 100, 200)
+            }
+            portrait_color = character_colors.get(character, (150, 150, 150))
+            pygame.draw.rect(screen, portrait_color, portrait_rect)
+            pygame.draw.rect(screen, color, portrait_rect, 2)
         
         # Character name
         name_text = self.info_font.render(character, True, (255, 255, 255))

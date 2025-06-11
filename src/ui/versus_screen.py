@@ -14,6 +14,7 @@ Features:
 
 import pygame
 from src.core.state_manager import GameState, GameStateType
+import os
 
 class VersusScreenState(GameState):
     """
@@ -43,6 +44,16 @@ class VersusScreenState(GameState):
         # Character data
         self.p1_char = None
         self.p2_char = None
+        
+        # Load character portraits
+        self.character_portraits = {}
+        char_names = ["Warrior", "Speedster", "Heavy"]
+        for name in char_names:
+            path = os.path.join('assets', 'images', 'portraits', f'{name}.png')
+            if os.path.exists(path):
+                self.character_portraits[name] = pygame.image.load(path).convert_alpha()
+            else:
+                self.character_portraits[name] = None
 
     def enter(self):
         """
@@ -102,26 +113,33 @@ class VersusScreenState(GameState):
         char_name_rect = char_name.get_rect(center=(x_center, 220))
         screen.blit(char_name, char_name_rect)
 
-        # Character "Fighting Stance" Image Placeholder
-        # TODO: Replace this with actual character art when available.
-        image_width, image_height = 300, 300
-        image_rect = pygame.Rect(0, 0, image_width, image_height)
-        image_rect.center = (x_center, 420)
-        
-        # This will simulate the character's color scheme
-        character_colors = {
-            "Warrior": (200, 150, 100),
-            "Speedster": (255, 255, 100),
-            "Heavy": (150, 100, 200)
-        }
-        char_color = character_colors.get(char_data['name'], (150, 150, 150))
+        # Character "Fighting Stance" Image
+        portrait = self.character_portraits.get(char_data['name'])
+        if portrait:
+            image_width, image_height = 300, 300
+            
+            # Flip player 2's portrait
+            if side == 'right':
+                portrait = pygame.transform.flip(portrait, True, False)
 
-        # A simple representation of a character
-        pygame.draw.rect(screen, char_color, image_rect, border_radius=15)
-        pygame.draw.rect(screen, color, image_rect, 5, border_radius=15)
+            portrait_scaled = pygame.transform.scale(portrait, (image_width, image_height))
+            portrait_rect = portrait_scaled.get_rect(center=(x_center, 420))
+            screen.blit(portrait_scaled, portrait_rect)
+            
+            # Outline
+            pygame.draw.rect(screen, color, portrait_rect, 5, border_radius=15)
+        else:
+            # Placeholder if image is missing
+            image_width, image_height = 300, 300
+            image_rect = pygame.Rect(0, 0, image_width, image_height)
+            image_rect.center = (x_center, 420)
+            
+            character_colors = {
+                "Warrior": (200, 150, 100),
+                "Speedster": (255, 255, 100),
+                "Heavy": (150, 100, 200)
+            }
+            char_color = character_colors.get(char_data['name'], (150, 150, 150))
 
-        # Add a small note about placeholder art
-        placeholder_font = pygame.font.Font(None, 18)
-        placeholder_text = placeholder_font.render("Placeholder Art", True, (200, 200, 200))
-        placeholder_rect = placeholder_text.get_rect(center=(x_center, image_rect.bottom - 20))
-        screen.blit(placeholder_text, placeholder_rect) 
+            pygame.draw.rect(screen, char_color, image_rect, border_radius=15)
+            pygame.draw.rect(screen, color, image_rect, 5, border_radius=15) 

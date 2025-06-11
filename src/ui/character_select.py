@@ -24,6 +24,7 @@ from src.characters.speedster import Speedster
 from src.characters.heavy import Heavy
 from enum import Enum
 from src.input.input_manager import InputManager
+import os
 
 class SelectionState(Enum):
     """
@@ -51,6 +52,16 @@ class CharacterSelectState(GameState):
             {"name": "Heavy", "class": Heavy, "archetype": "Grappler", "difficulty": "Intermediate"}
         ]
         
+        # Load character portraits
+        self.character_portraits = {}
+        for char in self.characters:
+            char_name = char["name"]
+            path = os.path.join('assets', 'images', 'portraits', f'{char_name}.png')
+            if os.path.exists(path):
+                self.character_portraits[char_name] = pygame.image.load(path).convert_alpha()
+            else:
+                self.character_portraits[char_name] = None # Placeholder
+
         # Player selections
         self.player1_cursor = 0  # Current cursor position
         self.player2_cursor = 0
@@ -258,16 +269,24 @@ class CharacterSelectState(GameState):
         pygame.draw.rect(screen, (60, 60, 80), box_rect)
         pygame.draw.rect(screen, (255, 255, 255), box_rect, 2)
         
-        # Character portrait placeholder (large colored rectangle)
-        portrait_rect = pygame.Rect(box_x + 25, box_y + 20, 150, 120)
-        character_colors = {
-            "Warrior": (200, 150, 100),
-            "Speedster": (255, 255, 100), 
-            "Heavy": (150, 100, 200)
-        }
-        portrait_color = character_colors.get(character["name"], (150, 150, 150))
-        pygame.draw.rect(screen, portrait_color, portrait_rect)
-        pygame.draw.rect(screen, (255, 255, 255), portrait_rect, 2)
+        # Character portrait
+        portrait = self.character_portraits.get(character["name"])
+        if portrait:
+            # Scale portrait to fit the box
+            portrait_scaled = pygame.transform.scale(portrait, (150, 120))
+            portrait_rect = portrait_scaled.get_rect(center=(box_x + self.character_box_width // 2, box_y + 80))
+            screen.blit(portrait_scaled, portrait_rect)
+        else:
+            # Character portrait placeholder (large colored rectangle)
+            portrait_rect = pygame.Rect(box_x + 25, box_y + 20, 150, 120)
+            character_colors = {
+                "Warrior": (200, 150, 100),
+                "Speedster": (255, 255, 100), 
+                "Heavy": (150, 100, 200)
+            }
+            portrait_color = character_colors.get(character["name"], (150, 150, 150))
+            pygame.draw.rect(screen, portrait_color, portrait_rect)
+            pygame.draw.rect(screen, (255, 255, 255), portrait_rect, 2)
         
         # Character name
         name_text = self.character_font.render(character["name"], True, (255, 255, 255))

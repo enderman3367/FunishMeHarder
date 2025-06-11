@@ -77,6 +77,10 @@ class Heavy(Character):
         
         self.is_ground_pounding = False
         self.ground_pound_attack_data = None
+
+        # Cooldown for Up Special
+        self.up_special_cooldown = 0
+        self.up_special_cooldown_duration = 600  # 10 seconds at 60fps
         
         # Character name and description
         self.name = "Heavy"
@@ -127,6 +131,10 @@ class Heavy(Character):
             }
         elif direction == 'up':
             # Ground pound with shockwave
+            if self.up_special_cooldown > 0:
+                print("Ground pound is on cooldown!")
+                return
+            
             self.velocity[1] = -self.jump_strength * 1.2  # A bit higher than a normal jump
             self.on_ground = False
             self.is_ground_pounding = True
@@ -142,6 +150,7 @@ class Heavy(Character):
                 'has_shockwave': True
             }
             self.ground_pound_attack_data = self.current_attack.copy()
+            self.up_special_cooldown = self.up_special_cooldown_duration # Start cooldown
         elif direction == 'down':
             # Armor stance (damage reduction + super armor)
             self.change_state(CharacterState.DOWN_SPECIAL)
@@ -268,6 +277,10 @@ class Heavy(Character):
         """
         Override update to handle armor and stance mechanics
         """
+        # Update cooldowns
+        if self.up_special_cooldown > 0:
+            self.up_special_cooldown -= 1
+        
         # Handle super armor timer
         if self.has_super_armor and self.armor_timer > 0:
             self.armor_timer -= 1

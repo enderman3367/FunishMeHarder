@@ -173,6 +173,7 @@ class Warrior(Character):
             }
         elif direction == 'side':
             # Powerful sword thrust
+            self.velocity[0] = 0  # Stop movement to prevent sliding
             self.change_state(CharacterState.HEAVY_ATTACK)
             self.current_attack = {
                 'type': 'sword_thrust',
