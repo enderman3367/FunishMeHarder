@@ -45,7 +45,7 @@ class Speedster(Character):
         - Initialize mobility abilities
         - Load speedster sprites and effects
         """
-        super().__init__(x, y, player_id)
+        super().__init__(x, y, player_id, "speedster")
         
         # Speedster-specific stats
         self.max_health = 85  # Lower health for glass cannon

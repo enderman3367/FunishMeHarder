@@ -43,7 +43,7 @@ class Warrior(Character):
         - Initialize special move properties
         - Load warrior sprites and animations
         """
-        super().__init__(x, y, player_id)
+        super().__init__(x, y, player_id, "warrior")
         
         # Warrior-specific stats
         self.max_health = 120  # Slightly above average

@@ -45,7 +45,7 @@ class Heavy(Character):
         - Initialize armor and grab systems
         - Load heavy sprites and impact effects
         """
-        super().__init__(x, y, player_id)
+        super().__init__(x, y, player_id, "heavy")
         
         # Heavy-specific stats
         self.max_health = 160  # Much higher health

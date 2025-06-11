@@ -16,6 +16,7 @@ Key Features for Smooth Movement:
 import pygame
 import numpy as np
 from enum import Enum
+import os
 
 class CharacterState(Enum):
     """
@@ -71,7 +72,7 @@ class Character:
     - Sound effect integration for movement and attacks
     """
     
-    def __init__(self, x, y, player_id):
+    def __init__(self, x, y, player_id, character_name="fighter"):
         """
         Initialize a character with smooth physics system
         """
@@ -149,6 +150,51 @@ class Character:
         # Size for collision (will be overridden by sprites later)
         self.width = 60
         self.height = 80
+
+        # Sprite management
+        self.character_name = character_name.lower()
+        self.sprites = {}
+        self._load_sprites()
+    
+    def _load_sprites(self):
+        """
+        Load character sprites from assets folder
+        """
+        # The character select screen uses "Warrior", but the assets folder is "fighter sprites"
+        # We'll handle that mapping here for now.
+        asset_name = self.character_name
+        if self.character_name == "warrior":
+            asset_name = "fighter" # Remap "warrior" to "fighter" for assets
+        
+        sprite_path = os.path.join('assets', 'images', f'{asset_name} sprites')
+
+        # Idle
+        idle_path = os.path.join(sprite_path, f'{asset_name}-idle.png')
+        if os.path.exists(idle_path):
+            self.sprites['idle'] = [pygame.image.load(idle_path).convert_alpha()]
+        else:
+            self.sprites['idle'] = []
+
+        # Walking
+        self.sprites['walking'] = []
+        for frame in ['a', 'b', 'c', 'd']:
+            frame_path = os.path.join(sprite_path, f'{asset_name}-walking-{frame}.png')
+            if os.path.exists(frame_path):
+                self.sprites['walking'].append(pygame.image.load(frame_path).convert_alpha())
+
+        # Running
+        self.sprites['running'] = []
+        for frame in ['a', 'b', 'c', 'd', 'e', 'f']:
+            frame_path = os.path.join(sprite_path, f'{asset_name}-running-{frame}.png')
+            if os.path.exists(frame_path):
+                self.sprites['running'].append(pygame.image.load(frame_path).convert_alpha())
+
+        # No Weapon (for attacks)
+        no_weapon_path = os.path.join(sprite_path, f'{asset_name}-no-weapon.png')
+        if os.path.exists(no_weapon_path):
+            self.sprites['no-weapon'] = [pygame.image.load(no_weapon_path).convert_alpha()]
+        else:
+            self.sprites['no-weapon'] = []
     
     def update(self, delta_time, player_input, stage):
         """
@@ -497,14 +543,29 @@ class Character:
         """
         Get number of animation frames for a state
         """
+        if state == CharacterState.IDLE:
+            return len(self.sprites.get('idle', []))
+        if state == CharacterState.WALKING:
+            return len(self.sprites.get('walking', []))
+        if state == CharacterState.RUNNING:
+            # Fallback to walking animation if no running animation exists
+            running_sprites = self.sprites.get('running', [])
+            if running_sprites:
+                return len(running_sprites)
+            return len(self.sprites.get('walking', []))
+        
+        # For attacks, we use the single 'no-weapon' sprite
+        attack_states = [
+            CharacterState.LIGHT_ATTACK, CharacterState.HEAVY_ATTACK,
+            CharacterState.SIDE_SPECIAL, CharacterState.UP_SPECIAL,
+            CharacterState.DOWN_SPECIAL, CharacterState.NEUTRAL_SPECIAL
+        ]
+        if state in attack_states:
+            return 1 # Just one "no-weapon" frame
+
         frame_counts = {
-            CharacterState.IDLE: 8,
-            CharacterState.WALKING: 6,
-            CharacterState.RUNNING: 8,
             CharacterState.JUMPING: 4,
             CharacterState.FALLING: 2,
-            CharacterState.LIGHT_ATTACK: 6,
-            CharacterState.HEAVY_ATTACK: 10,
         }
         return frame_counts.get(state, 1)
     
@@ -540,20 +601,56 @@ class Character:
         # Calculate sprite flipping
         flip_horizontal = not self.facing_right
         
-        # Hit flash effect
-        color_mod = (255, 255, 255) if self.hit_flash_timer <= 0 else (255, 200, 200)
-        
-        # Simple rectangle rendering (replace with sprite rendering later)
-        character_rect = pygame.Rect(
-            screen_x - self.width // 2,
-            screen_y - self.height,
-            self.width,
-            self.height
-        )
-        
-        # Character body
-        pygame.draw.rect(screen, color_mod, character_rect)
-        
+        # Select the correct sprite sheet
+        sprite_sheet = None
+        is_attack_state = self.current_state in [
+            CharacterState.LIGHT_ATTACK, CharacterState.HEAVY_ATTACK,
+            CharacterState.SIDE_SPECIAL, CharacterState.UP_SPECIAL,
+            CharacterState.DOWN_SPECIAL, CharacterState.NEUTRAL_SPECIAL
+        ]
+
+        if is_attack_state and 'no-weapon' in self.sprites and self.sprites['no-weapon']:
+            sprite_sheet = self.sprites['no-weapon']
+        elif self.current_state == CharacterState.IDLE and 'idle' in self.sprites:
+            sprite_sheet = self.sprites['idle']
+        elif self.current_state == CharacterState.WALKING and 'walking' in self.sprites:
+            sprite_sheet = self.sprites['walking']
+        elif self.current_state == CharacterState.RUNNING:
+            if 'running' in self.sprites and self.sprites['running']:
+                sprite_sheet = self.sprites['running']
+            elif 'walking' in self.sprites and self.sprites['walking']: # Fallback to walking
+                sprite_sheet = self.sprites['walking']
+
+        # Get current animation frame
+        if sprite_sheet:
+            frame_index = int(self.animation_frame) % len(sprite_sheet)
+            image = sprite_sheet[frame_index]
+            
+            # Flip and scale
+            image = pygame.transform.flip(image, flip_horizontal, False)
+            image = pygame.transform.scale(image, (self.width, self.height))
+
+            # Hit flash effect
+            if self.hit_flash_timer > 0:
+                flash_image = image.copy()
+                flash_image.fill((255, 100, 100, 128), special_flags=pygame.BLEND_RGBA_MULT)
+                image.blit(flash_image, (0, 0))
+
+            # Center the sprite on the character's position
+            rect = image.get_rect(center=(screen_x, screen_y - self.height / 2))
+            screen.blit(image, rect)
+
+        else:
+             # Fallback to rectangle rendering if no sprite is found
+            color_mod = (255, 255, 255) if self.hit_flash_timer <= 0 else (255, 200, 200)
+            character_rect = pygame.Rect(
+                screen_x - self.width // 2,
+                screen_y - self.height,
+                self.width,
+                self.height
+            )
+            pygame.draw.rect(screen, color_mod, character_rect)
+
         # Direction indicator
         face_color = (0, 255, 0) if self.facing_right else (255, 0, 0)
         face_rect = pygame.Rect(
