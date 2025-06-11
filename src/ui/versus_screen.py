@@ -26,7 +26,7 @@ class VersusScreenState(GameState):
         Initialize the versus screen.
         """
         super().__init__(state_manager)
-        self.transition_duration = 3.0  # seconds
+        self.transition_duration = 4.0  # seconds
         self.timer = 0.0
 
         # Fonts
@@ -53,6 +53,13 @@ class VersusScreenState(GameState):
             self.background_image = None
             print("Warning: Could not load configselect.png for versus screen.")
 
+        # Load versus music
+        try:
+            self.versus_music = pygame.mixer.Sound(os.path.join('assets', 'audio', 'versus.mp3'))
+        except pygame.error:
+            self.versus_music = None
+            print("Warning: Could not load versus.mp3")
+
         # Load character portraits
         self.character_portraits = {}
         char_names = ["Warrior", "Speedster", "Heavy"]
@@ -71,12 +78,19 @@ class VersusScreenState(GameState):
         if hasattr(self.state_manager, 'selected_characters'):
             self.p1_char = self.state_manager.selected_characters.get('player1')
             self.p2_char = self.state_manager.selected_characters.get('player2')
+        
+        if self.versus_music:
+            self.versus_music.play()
+            
         print("Entering Versus Screen")
 
     def exit(self):
         """
         Called when leaving the versus screen.
         """
+        if self.versus_music:
+            self.versus_music.stop()
+            
         print("Exiting Versus Screen")
 
     def update(self, delta_time):
