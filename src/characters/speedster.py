@@ -93,6 +93,10 @@ class Speedster(Character):
         self.side_attack_cooldown = 0
         self.side_attack_cooldown_duration = 120 # 2 seconds at 60fps
         
+        # Side special cooldown
+        self.side_special_cooldown = 0
+        self.side_special_cooldown_duration = 300 # 5 seconds at 60fps
+        
         # Character name and description
         self.name = "Speedster"
         self.description = "Lightning-fast fighter with superior mobility and combo potential"
@@ -218,6 +222,28 @@ class Speedster(Character):
             momentum = 4 if self.facing_right else -4
             self.velocity[0] += momentum
             self.side_attack_cooldown = self.side_attack_cooldown_duration
+        elif direction == 'side_special':
+            if self.side_special_cooldown > 0:
+                print("Side special is on cooldown!")
+                return
+            
+            self.change_state(CharacterState.SIDE_SPECIAL)
+            self.current_attack = {
+                'type': 'lightning_dash',
+                'startup_frames': 5,
+                'active_frames': 15,
+                'recovery_frames': 20,
+                'damage': 4,
+                'knockback': 5,
+                'range': 80,
+                'is_multihit': True,
+                'hit_interval': 5,
+                'has_movement': True,
+            }
+            # Add a large burst of momentum for the dash
+            momentum = 18 if self.facing_right else -18
+            self.velocity[0] = momentum
+            self.side_special_cooldown = self.side_special_cooldown_duration
         elif direction == 'up':
             # Up special: Whirlwind Flight
             if self.up_special_cooldown > 0:
@@ -346,6 +372,9 @@ class Speedster(Character):
         
         if self.side_attack_cooldown > 0:
             self.side_attack_cooldown -= 1
+        
+        if self.side_special_cooldown > 0:
+            self.side_special_cooldown -= 1
 
         if self.is_flying_up:
             if player_input.is_pressed('attack') and self.flight_timer > 0:

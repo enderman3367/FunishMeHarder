@@ -310,6 +310,14 @@ class Heavy(Character):
             slide_speed = 9.0
             self.velocity[0] = slide_speed if self.facing_right else -slide_speed
 
+            # --- New: Cancel slide on direction change ---
+            horizontal_input = player_input.get_horizontal_axis()
+            if (self.facing_right and horizontal_input < -0.5) or \
+               (not self.facing_right and horizontal_input > 0.5):
+                print("Body slam cancelled by changing direction!")
+                self.velocity[0] = 0
+                self.end_attack()
+
         # Handle sliding attack (old logic, can be removed or kept for other moves)
         if self.is_attacking and self.current_attack and self.current_attack.get('has_slide'):
             slide_speed = 5.0

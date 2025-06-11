@@ -202,16 +202,18 @@ class PlayerInput:
     def get_attack_direction(self):
         """
         Get the direction for attack input (like Smash Bros)
-        Returns: 'neutral', 'side', 'up', 'down'
+        Returns: 'neutral', 'side', 'up', 'down', or special versions
         """
+        is_special = self.is_pressed('grab') # Using 'grab' as the special button
+
         if self.is_pressed('up'):
-            return 'up'
+            return 'up_special' if is_special else 'up'
         elif self.is_pressed('down'):
-            return 'down'
+            return 'down_special' if is_special else 'down'
         elif self.is_pressed('left') or self.is_pressed('right'):
-            return 'side'
+            return 'side_special' if is_special else 'side'
         else:
-            return 'neutral'
+            return 'neutral_special' if is_special else 'neutral'
     
     def was_pressed_in_buffer(self, action, frames_back=None):
         """
