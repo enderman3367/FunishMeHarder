@@ -182,12 +182,33 @@ class Character:
             if os.path.exists(frame_path):
                 self.sprites['walking'].append(pygame.image.load(frame_path).convert_alpha())
 
+        # Landing and Hit Stun (b and d frames of walking)
+        self.sprites['landing'] = []
+        self.sprites['hit_stun'] = []
+        landing_hit_frames = ['b', 'd']
+        for frame in landing_hit_frames:
+            frame_path = os.path.join(sprite_path, f'{asset_name}-walking-{frame}.png')
+            if os.path.exists(frame_path):
+                img = pygame.image.load(frame_path).convert_alpha()
+                self.sprites['landing'].append(img)
+                self.sprites['hit_stun'].append(img)
+
         # Running
         self.sprites['running'] = []
         for frame in ['a', 'b', 'c', 'd', 'e', 'f']:
             frame_path = os.path.join(sprite_path, f'{asset_name}-running-{frame}.png')
             if os.path.exists(frame_path):
                 self.sprites['running'].append(pygame.image.load(frame_path).convert_alpha())
+
+        # Jumping
+        self.sprites['jumping'] = []
+        # Look for the special jumping sprites
+        jumping_sprite_names = ["GIMMEHEADTOP.png", "TOPHEADGIMME.png", "GIMMETOPHEAD.png"]
+        for js_name in jumping_sprite_names:
+            frame_path = os.path.join(sprite_path, js_name)
+            if os.path.exists(frame_path):
+                self.sprites['jumping'].append(pygame.image.load(frame_path).convert_alpha())
+                break # Found one, no need to check others
 
         # No Weapon (for attacks)
         no_weapon_path = os.path.join(sprite_path, f'{asset_name}-no-weapon.png')
@@ -543,7 +564,7 @@ class Character:
         """
         Get number of animation frames for a state
         """
-        if state == CharacterState.IDLE:
+        if state in [CharacterState.IDLE, CharacterState.CROUCHING]:
             return len(self.sprites.get('idle', []))
         if state == CharacterState.WALKING:
             return len(self.sprites.get('walking', []))
@@ -553,6 +574,10 @@ class Character:
             if running_sprites:
                 return len(running_sprites)
             return len(self.sprites.get('walking', []))
+        if state in [CharacterState.JUMPING, CharacterState.FALLING]:
+            return len(self.sprites.get('jumping', []))
+        if state in [CharacterState.LANDING, CharacterState.HIT_STUN]:
+            return len(self.sprites.get('landing', []))
         
         # For attacks, we use the single 'no-weapon' sprite
         attack_states = [
@@ -564,8 +589,6 @@ class Character:
             return 1 # Just one "no-weapon" frame
 
         frame_counts = {
-            CharacterState.JUMPING: 4,
-            CharacterState.FALLING: 2,
         }
         return frame_counts.get(state, 1)
     
@@ -611,7 +634,7 @@ class Character:
 
         if is_attack_state and 'no-weapon' in self.sprites and self.sprites['no-weapon']:
             sprite_sheet = self.sprites['no-weapon']
-        elif self.current_state == CharacterState.IDLE and 'idle' in self.sprites:
+        elif self.current_state in [CharacterState.IDLE, CharacterState.CROUCHING] and 'idle' in self.sprites:
             sprite_sheet = self.sprites['idle']
         elif self.current_state == CharacterState.WALKING and 'walking' in self.sprites:
             sprite_sheet = self.sprites['walking']
@@ -620,6 +643,15 @@ class Character:
                 sprite_sheet = self.sprites['running']
             elif 'walking' in self.sprites and self.sprites['walking']: # Fallback to walking
                 sprite_sheet = self.sprites['walking']
+        elif self.current_state in [CharacterState.JUMPING, CharacterState.FALLING]:
+            if 'jumping' in self.sprites and self.sprites['jumping']:
+                sprite_sheet = self.sprites['jumping']
+        elif self.current_state == CharacterState.LANDING:
+            if 'landing' in self.sprites and self.sprites['landing']:
+                sprite_sheet = self.sprites['landing']
+        elif self.current_state == CharacterState.HIT_STUN:
+            if 'hit_stun' in self.sprites and self.sprites['hit_stun']:
+                sprite_sheet = self.sprites['hit_stun']
 
         # Get current animation frame
         if sprite_sheet:
@@ -652,20 +684,20 @@ class Character:
             pygame.draw.rect(screen, color_mod, character_rect)
 
         # Direction indicator
-        face_color = (0, 255, 0) if self.facing_right else (255, 0, 0)
-        face_rect = pygame.Rect(
-            screen_x + (10 if self.facing_right else -20),
-            screen_y - self.height + 10,
-            10, 10
-        )
-        pygame.draw.rect(screen, face_color, face_rect)
+        # face_color = (0, 255, 0) if self.facing_right else (255, 0, 0)
+        # face_rect = pygame.Rect(
+        #     screen_x + (10 if self.facing_right else -20),
+        #     screen_y - self.height + 10,
+        #     10, 10
+        # )
+        # pygame.draw.rect(screen, face_color, face_rect)
         
         # Debug: Show velocity as arrow
-        if abs(self.velocity[0]) > 0.1 or abs(self.velocity[1]) > 0.1:
-            end_x = screen_x + self.velocity[0] * 3
-            end_y = screen_y + self.velocity[1] * 3
-            pygame.draw.line(screen, (255, 255, 0), 
-                           (screen_x, screen_y), (end_x, end_y), 2)
+        # if abs(self.velocity[0]) > 0.1 or abs(self.velocity[1]) > 0.1:
+        #     end_x = screen_x + self.velocity[0] * 3
+        #     end_y = screen_y + self.velocity[1] * 3
+        #     pygame.draw.line(screen, (255, 255, 0), 
+        #                    (screen_x, screen_y), (end_x, end_y), 2)
         
         # Debug: Show attack hitboxes
         for hitbox in self.active_hitboxes:
