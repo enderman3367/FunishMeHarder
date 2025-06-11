@@ -69,6 +69,14 @@ class StageSelectState(GameState):
         self.grid_start_x = 640 - (len(self.stages) * (self.stage_box_width + self.stage_spacing) - self.stage_spacing) // 2
         self.grid_y = 150
         
+        # Load background
+        try:
+            self.background_image = pygame.image.load('assets/images/configselect.png').convert()
+            self.background_image = pygame.transform.scale(self.background_image, (1280, 720))
+        except pygame.error:
+            self.background_image = None
+            print("Warning: Could not load configselect.png for stage select.")
+        
         # Colors
         self.selection_color = (255, 200, 0)  # Gold
         self.confirmed_color = (100, 255, 100)  # Green
@@ -182,7 +190,10 @@ class StageSelectState(GameState):
         """
         Render the stage select screen
         """
-        screen.fill(self.background_color)
+        if self.background_image:
+            screen.blit(self.background_image, (0, 0))
+        else:
+            screen.fill(self.background_color)
         
         # Render title
         title_text = self.title_font.render("SELECT STAGE", True, (255, 255, 255))

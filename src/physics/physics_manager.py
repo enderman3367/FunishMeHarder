@@ -24,6 +24,8 @@ import pygame
 import numpy as np
 from enum import Enum
 import math
+import os
+import random
 
 class CollisionType(Enum):
     """
@@ -166,6 +168,16 @@ class PhysicsManager:
         self.active_hitboxes = []
         self.character_hurtboxes = []
         
+        # Load hit sound effects
+        self.hit_sounds = []
+        sound_files = ["hitA.mp3", "HitB.mp3", "HitC.mp3", "HitD.mp3", "HitE.mp3", "HitF.mp3"]
+        for sound_file in sound_files:
+            path = os.path.join('assets', 'audio', 'hit SFX', sound_file)
+            try:
+                self.hit_sounds.append(pygame.mixer.Sound(path))
+            except pygame.error:
+                print(f"Warning: Could not load sound file {path}")
+
         # Performance optimization
         self.spatial_grid = {}  # TODO: Implement spatial hashing
 
@@ -758,6 +770,10 @@ class PhysicsManager:
             attacker
         )
         
+        # Play a random hit sound
+        if self.hit_sounds:
+            random.choice(self.hit_sounds).play()
+
         print(f"Hit! {hitbox['damage']} damage, knockback: ({knockback_x:.1f}, {knockback_y:.1f})")  # Debug
     
     def add_hitbox(self, hitbox):

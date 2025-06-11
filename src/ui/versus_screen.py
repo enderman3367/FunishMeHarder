@@ -45,6 +45,14 @@ class VersusScreenState(GameState):
         self.p1_char = None
         self.p2_char = None
         
+        # Load background
+        try:
+            self.background_image = pygame.image.load('assets/images/configselect.png').convert()
+            self.background_image = pygame.transform.scale(self.background_image, (1280, 720))
+        except pygame.error:
+            self.background_image = None
+            print("Warning: Could not load configselect.png for versus screen.")
+
         # Load character portraits
         self.character_portraits = {}
         char_names = ["Warrior", "Speedster", "Heavy"]
@@ -83,7 +91,10 @@ class VersusScreenState(GameState):
         """
         Render the versus screen.
         """
-        screen.fill(self.background_color)
+        if self.background_image:
+            screen.blit(self.background_image, (0, 0))
+        else:
+            screen.fill(self.background_color)
 
         # --- Player 1 Display (Left) ---
         self.render_player_display(screen, "Player 1", self.p1_char, 320, self.p1_color, "left")

@@ -17,6 +17,7 @@ from enum import Enum
 from src.characters.warrior import Warrior
 from src.characters.speedster import Speedster
 from src.characters.heavy import Heavy
+import os
 
 class GameStateType(Enum):
     """
@@ -593,7 +594,38 @@ class SimpleMenuState(GameState):
         super().__init__(state_manager)
         self.selected_option = 0
         self.menu_options = ["Start Game", "Quit"]
-    
+        
+        # Load background and define button styles
+        try:
+            self.background_image = pygame.image.load('assets/images/splash.png')
+            self.background_image = pygame.transform.scale(self.background_image, (1280, 720))
+        except pygame.error:
+            self.background_image = None
+            print("Warning: Could not load splash.png. Using solid color background.")
+
+        self.button_color = (40, 40, 80, 180) # Semi-transparent dark blue
+        self.highlight_color = (80, 80, 150, 220) # Brighter, more opaque blue
+        self.border_color = (255, 255, 0) # Yellow border for highlight
+        self.button_width = 300
+        self.button_height = 60
+
+        # Load title music
+        try:
+            self.title_music = pygame.mixer.Sound(os.path.join('assets', 'audio', 'title.mp3'))
+        except pygame.error:
+            self.title_music = None
+            print("Warning: Could not load title.mp3")
+
+    def enter(self):
+        """Called when entering this state."""
+        if self.title_music:
+            self.title_music.play(loops=-1)
+
+    def exit(self):
+        """Called when leaving this state."""
+        if self.title_music:
+            self.title_music.stop()
+
     def handle_event(self, event):
         # Handle Keyboard Input
         if event.type == pygame.KEYDOWN:
@@ -633,66 +665,60 @@ class SimpleMenuState(GameState):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
     
     def render(self, screen):
-        screen.fill((20, 20, 40))
+        # Draw background
+        if self.background_image:
+            screen.blit(self.background_image, (0, 0))
+        else:
+            screen.fill((20, 20, 40)) # Fallback color
         
         font = pygame.font.Font(None, 72)
         menu_font = pygame.font.Font(None, 48)
-        hint_font = pygame.font.Font(None, 20)
         
         # Title
         title = font.render("SUPER SCUFFED FIGHTERS", True, (255, 255, 255))
+        title_shadow = font.render("SUPER SCUFFED FIGHTERS", True, (0, 0, 0))
         title_rect = title.get_rect(center=(640, 200))
+        screen.blit(title_shadow, (title_rect.x + 3, title_rect.y + 3))
         screen.blit(title, title_rect)
         
-        # Menu options
+        # Menu options as buttons
         for i, option in enumerate(self.menu_options):
-            color = (255, 200, 0) if i == self.selected_option else (200, 200, 200)
-            text = menu_font.render(option, True, color)
-            text_rect = text.get_rect(center=(640, 350 + i * 60))
-            screen.blit(text, text_rect)
+            button_rect = pygame.Rect(
+                (1280 - self.button_width) / 2, 
+                350 + i * 80, 
+                self.button_width, 
+                self.button_height
+            )
+            
+            # Create a surface for the button with per-pixel alpha
+            button_surface = pygame.Surface((self.button_width, self.button_height), pygame.SRCALPHA)
+
+            if i == self.selected_option:
+                # Draw highlighted button
+                pygame.draw.rect(button_surface, self.highlight_color, button_surface.get_rect(), border_radius=10)
+                pygame.draw.rect(button_surface, self.border_color, button_surface.get_rect(), 3, border_radius=10)
+                text_color = (255, 255, 255)
+            else:
+                # Draw normal button
+                pygame.draw.rect(button_surface, self.button_color, button_surface.get_rect(), border_radius=10)
+                text_color = (200, 200, 200)
+
+            # Render text on the button
+            text = menu_font.render(option, True, text_color)
+            text_rect = text.get_rect(center=(self.button_width / 2, self.button_height / 2))
+            button_surface.blit(text, text_rect)
+
+            # Blit the button surface onto the screen
+            screen.blit(button_surface, button_rect.topleft)
         
         # Instructions
         instruction_font = pygame.font.Font(None, 24)
         instructions = "Use W/S or Arrow Keys to navigate, Enter/Space to select"
-        instr_text = instruction_font.render(instructions, True, (150, 150, 150))
+        instr_text = instruction_font.render(instructions, True, (220, 220, 220))
+        instr_shadow = instruction_font.render(instructions, True, (0, 0, 0))
         instr_rect = instr_text.get_rect(center=(640, 550))
+        screen.blit(instr_shadow, (instr_rect.x + 1, instr_rect.y + 1))
         screen.blit(instr_text, instr_rect)
-        
-        # Player control hints on sides
-        p1_hints = [
-            "Player 1 Controls:",
-            "WASD - Move",
-            "Q+direction - Attack",
-            "", 
-            "Attack types:",
-            "Q alone - Neutral",
-            "Q+direction - Special"
-        ]
-        
-        p2_hints = [
-            "Player 2 Controls:",
-            "IJKL - Move", 
-            "U+direction - Attack",
-            "",
-            "Attack types:",
-            "U alone - Neutral", 
-            "U+direction - Special"
-        ]
-        
-        # Render Player 1 hints (left side)
-        for i, hint in enumerate(p1_hints):
-            color = (255, 100, 100) if i == 0 else (180, 180, 180)
-            if hint:  # Skip empty strings
-                text = hint_font.render(hint, True, color)
-                screen.blit(text, (20, 400 + i * 22))
-        
-        # Render Player 2 hints (right side)
-        for i, hint in enumerate(p2_hints):
-            color = (100, 150, 255) if i == 0 else (180, 180, 180)
-            if hint:  # Skip empty strings
-                text = hint_font.render(hint, True, color)
-                text_rect = text.get_rect()
-                screen.blit(text, (1280 - text_rect.width - 20, 400 + i * 22))
 
 class StateManager:
     """
@@ -716,6 +742,14 @@ class StateManager:
         self.selected_stage = None
         self.match_results = None
         
+        # Load shared music
+        try:
+            self.config_music = pygame.mixer.Sound(os.path.join('assets', 'audio', 'game config.mp3'))
+            self.is_config_music_playing = False
+        except pygame.error:
+            self.config_music = None
+            print("Warning: Could not load game config.mp3")
+
         # Import and create all states
         self.create_all_states()
         
@@ -744,6 +778,14 @@ class StateManager:
         """
         Change to a completely new state
         """
+        # --- Music Control Logic ---
+        # Stop config music if leaving a config screen for gameplay or main menu
+        if self.config_music and self.is_config_music_playing:
+            if state_type == GameStateType.VERSUS_SCREEN or state_type == GameStateType.MAIN_MENU:
+                self.config_music.stop()
+                self.is_config_music_playing = False
+                print("Stopped config music.")
+
         if self.current_state:
             self.current_state.exit()
         
@@ -751,6 +793,13 @@ class StateManager:
         self.current_state = self.states[state_type]
         self.current_state.enter()
         
+        # Start config music if entering the config screens
+        if self.config_music and not self.is_config_music_playing:
+            if state_type == GameStateType.CHARACTER_SELECT:
+                self.config_music.play(loops=-1)
+                self.is_config_music_playing = True
+                print("Started config music.")
+
         print(f"State changed to: {state_type.value}")
     
     def handle_event(self, event):

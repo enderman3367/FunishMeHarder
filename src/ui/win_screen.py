@@ -42,6 +42,14 @@ class WinScreenState(GameState):
         self.winner_damage = 0
         self.loser_damage = 0
         
+        # Load background
+        try:
+            self.background_image = pygame.image.load('assets/images/configselect.png').convert()
+            self.background_image = pygame.transform.scale(self.background_image, (1280, 720))
+        except pygame.error:
+            self.background_image = None
+            print("Warning: Could not load configselect.png for win screen.")
+        
         # Load character portraits
         self.character_portraits = {}
         char_names = ["Warrior", "Speedster", "Heavy"]
@@ -68,6 +76,13 @@ class WinScreenState(GameState):
         self.info_font = pygame.font.Font(None, 32)
         self.stat_font = pygame.font.Font(None, 24)
         self.hint_font = pygame.font.Font(None, 20)
+
+        # Load victory sound
+        try:
+            self.victory_sound = pygame.mixer.Sound(os.path.join('assets', 'audio', 'battle end.mp3'))
+        except pygame.error:
+            self.victory_sound = None
+            print("Warning: Could not load battle end.mp3")
     
     def enter(self):
         """
@@ -92,12 +107,20 @@ class WinScreenState(GameState):
         for _ in range(50):
             self.add_celebration_particle()
         
+        # Play victory music
+        if self.victory_sound:
+            self.victory_sound.play(loops=-1) # Loop indefinitely
+
         print(f"Win screen: Player {self.winner} wins!")
     
     def exit(self):
         """
         Called when leaving win screen
         """
+        # Stop victory music
+        if self.victory_sound:
+            self.victory_sound.stop()
+            
         print("Exiting win screen")
     
     def add_celebration_particle(self):
@@ -165,7 +188,10 @@ class WinScreenState(GameState):
         """
         Render the win screen
         """
-        screen.fill(self.background_color)
+        if self.background_image:
+            screen.blit(self.background_image, (0, 0))
+        else:
+            screen.fill(self.background_color)
         
         # Render celebration particles
         self.render_particles(screen)
