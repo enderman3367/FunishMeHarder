@@ -640,6 +640,35 @@ class PhysicsManager:
         """
         Check collisions between attack hitboxes and character hurtboxes
         """
+        # --- NEW: Body Slam Collision Check ---
+        for attacker in characters:
+            if attacker.is_attacking and attacker.current_attack and attacker.current_attack.get('is_body_slam'):
+                attacker_rect = attacker.get_collision_rect()
+
+                for defender in characters:
+                    if defender == attacker:
+                        continue
+                    
+                    defender_rect = defender.get_collision_rect()
+                    if attacker_rect.colliderect(defender_rect):
+                        print(f"💥 BODY SLAM HIT! P{attacker.player_id} hit P{defender.player_id}")
+                        
+                        # Create a temporary hitbox-like object to pass to apply_hit
+                        slam_hit = {
+                            'damage': attacker.current_attack['damage'],
+                            'knockback': attacker.current_attack['knockback'],
+                            'knockback_angle': -10, # Slight upward angle
+                            'owner': attacker
+                        }
+                        self.apply_hit(slam_hit, defender)
+                        
+                        # End the slam attack immediately after one hit
+                        attacker.end_attack()
+                        attacker.velocity[0] *= 0.2 # Drastically reduce speed after hit
+                        break # Stop checking this attacker
+                if not attacker.is_attacking: # If attack ended, continue to next attacker
+                    continue
+
         for attacker in characters:
             hitboxes_to_remove = []
 

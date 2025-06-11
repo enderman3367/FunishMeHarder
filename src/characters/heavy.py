@@ -115,19 +115,19 @@ class Heavy(Character):
                 'armor_frames': 10  # Armor during startup
             }
         elif direction == 'side':
-            # Devastating hammer slam
+            # Devastating hammer slam (now a body slam)
             self.change_state(CharacterState.HEAVY_ATTACK)
             self.current_attack = {
                 'type': 'hammer_slam',
-                'startup_frames': 18,  # Very slow startup
-                'active_frames': 8,
-                'recovery_frames': 25,
-                'damage': 25,  # Highest damage
-                'knockback': 10,
-                'range': 85,
+                'startup_frames': 12,
+                'active_frames': 25, # Long active time for slide
+                'recovery_frames': 30,
+                'damage': 18, # Base damage
+                'knockback': 8, # Base knockback
+                'range': 0, # No hitbox created
                 'has_armor': True,
-                'armor_frames': 15,
-                'has_slide': True
+                'armor_frames': 40,
+                'is_body_slam': True # New property for physics manager
             }
         elif direction == 'up':
             # Ground pound with shockwave
@@ -192,6 +192,11 @@ class Heavy(Character):
         if attack_type == 'armor_stance':
             # Apply armor stance buff
             self.apply_armor_stance()
+        elif attack_type == 'hammer_slam':
+            # No hitbox is created for the body slam.
+            # Collision is handled in the physics manager.
+            self.attack_hitbox_created = True
+            return
         else:
             # Regular melee attacks but larger
             hitbox_range = self.current_attack.get('range', 75)
@@ -300,17 +305,15 @@ class Heavy(Character):
             self.is_ground_pounding = False
             self.end_attack()
         
-        # Handle sliding attack
+        # Handle body slam attack movement
+        if self.is_attacking and self.current_attack and self.current_attack.get('is_body_slam'):
+            slide_speed = 9.0
+            self.velocity[0] = slide_speed if self.facing_right else -slide_speed
+
+        # Handle sliding attack (old logic, can be removed or kept for other moves)
         if self.is_attacking and self.current_attack and self.current_attack.get('has_slide'):
             slide_speed = 5.0
             self.velocity[0] = slide_speed if self.facing_right else -slide_speed
-
-            # Cancel slide on direction change
-            horizontal_input = player_input.get_horizontal_axis()
-            if (self.facing_right and horizontal_input < 0) or \
-               (not self.facing_right and horizontal_input > 0):
-                self.current_attack['has_slide'] = False
-                self.velocity[0] = 0
 
         # Call parent update
         super().update(delta_time, player_input, stage)
