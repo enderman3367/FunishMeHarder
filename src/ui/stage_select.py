@@ -16,7 +16,7 @@ Controls:
 - ESC to go back to character select
 
 Available Stages:
-- Plains: Simple flat stage, good for beginners
+- Snowdin: A snowy castle with multiple platforms for vertical combat.
 - Battlefield: Platform stage with hazards and ledges
 """
 
@@ -38,18 +38,20 @@ class StageSelectState(GameState):
         # Available stages
         self.stages = [
             {
-                "name": "Plains",
-                "description": "A simple flat battlefield perfect for beginners",
-                "features": ["Flat ground", "No hazards", "Easy recovery"],
-                "difficulty": "Beginner",
-                "type": "plains"
+                "name": "Snowdin",
+                "description": "A snowy castle with multiple platforms for vertical combat.",
+                "features": ["Multiple platforms", "No hazards", "Castle theme"],
+                "difficulty": "Intermediate",
+                "type": "plains",
+                "icon": "assets/images/plains icon.png"
             },
             {
                 "name": "Battlefield", 
                 "description": "Classic platform stage with ledges and hazards",
                 "features": ["Multiple platforms", "Ledge grabbing", "Fall-off zones"],
                 "difficulty": "Intermediate",
-                "type": "battlefield"
+                "type": "battlefield",
+                "icon": "assets/images/battlefield icon.png"
             }
         ]
         
@@ -68,6 +70,15 @@ class StageSelectState(GameState):
         self.stage_spacing = 100
         self.grid_start_x = 640 - (len(self.stages) * (self.stage_box_width + self.stage_spacing) - self.stage_spacing) // 2
         self.grid_y = 150
+        
+        # Load stage icons
+        for stage in self.stages:
+            if "icon" in stage:
+                try:
+                    stage["icon_surface"] = pygame.image.load(stage["icon"]).convert_alpha()
+                except pygame.error:
+                    stage["icon_surface"] = None
+                    print(f"Warning: Could not load icon for {stage['name']}")
         
         # Load background
         try:
@@ -231,28 +242,37 @@ class StageSelectState(GameState):
         
         # Stage preview (large colored area representing the stage)
         preview_rect = pygame.Rect(box_x + 20, box_y + 20, 360, 180)
-        stage_colors = {
-            "Plains": (100, 200, 100),      # Green plains
-            "Battlefield": (100, 100, 200)  # Blue battlefield
-        }
-        preview_color = stage_colors.get(stage["name"], (150, 150, 150))
-        pygame.draw.rect(screen, preview_color, preview_rect)
+        
+        if "icon_surface" in stage and stage["icon_surface"]:
+            # Use icon if available
+            scaled_icon = pygame.transform.scale(stage["icon_surface"], (preview_rect.width, preview_rect.height))
+            screen.blit(scaled_icon, preview_rect.topleft)
+        else:
+            # Fallback to colored box
+            stage_colors = {
+                "Snowdin": (180, 220, 255),      # Light blue for snow
+                "Battlefield": (100, 100, 200)  # Blue battlefield
+            }
+            preview_color = stage_colors.get(stage["name"], (150, 150, 150))
+            pygame.draw.rect(screen, preview_color, preview_rect)
+        
         pygame.draw.rect(screen, (255, 255, 255), preview_rect, 2)
         
-        # Draw stage-specific preview elements
-        if stage["name"] == "Plains":
-            # Simple flat ground
-            ground_rect = pygame.Rect(box_x + 20, box_y + 170, 360, 30)
-            pygame.draw.rect(screen, (80, 160, 80), ground_rect)
-        elif stage["name"] == "Battlefield":
-            # Multiple platforms
-            main_platform = pygame.Rect(box_x + 100, box_y + 170, 200, 20)
-            left_platform = pygame.Rect(box_x + 40, box_y + 120, 100, 15)
-            right_platform = pygame.Rect(box_x + 260, box_y + 120, 100, 15)
-            
-            pygame.draw.rect(screen, (80, 80, 160), main_platform)
-            pygame.draw.rect(screen, (60, 60, 140), left_platform)
-            pygame.draw.rect(screen, (60, 60, 140), right_platform)
+        # Draw stage-specific preview elements ONLY if no icon is loaded
+        if not stage.get("icon_surface"):
+            if stage["name"] == "Snowdin":
+                # Simple flat ground
+                ground_rect = pygame.Rect(box_x + 20, box_y + 170, 360, 30)
+                pygame.draw.rect(screen, (80, 160, 80), ground_rect)
+            elif stage["name"] == "Battlefield":
+                # Multiple platforms
+                main_platform = pygame.Rect(box_x + 100, box_y + 170, 200, 20)
+                left_platform = pygame.Rect(box_x + 40, box_y + 120, 100, 15)
+                right_platform = pygame.Rect(box_x + 260, box_y + 120, 100, 15)
+                
+                pygame.draw.rect(screen, (80, 80, 160), main_platform)
+                pygame.draw.rect(screen, (60, 60, 140), left_platform)
+                pygame.draw.rect(screen, (60, 60, 140), right_platform)
         
         # Stage name
         name_text = self.stage_font.render(stage["name"], True, (255, 255, 255))

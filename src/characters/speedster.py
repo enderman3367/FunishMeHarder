@@ -219,8 +219,8 @@ class Speedster(Character):
                 'has_movement': True
             }
             # Add forward momentum during attack
-            momentum = 4 if self.facing_right else -4
-            self.velocity[0] += momentum
+            momentum = 8 if self.facing_right else -8
+            self.velocity[0] = momentum
             self.side_attack_cooldown = self.side_attack_cooldown_duration
         elif direction == 'side_special':
             if self.side_special_cooldown > 0:
@@ -385,6 +385,14 @@ class Speedster(Character):
             else:
                 self.is_flying_up = False
                 self.end_attack()
+
+        # Handle sliding for dash attack
+        if self.is_attacking and self.current_attack and self.current_attack.get('type') == 'dash_attack':
+            # Apply friction during the attack to prevent infinite sliding
+            # This value is chosen to slow down the character to a near stop by the end of the attack.
+            self.velocity[0] *= 0.85 
+            if abs(self.velocity[0]) < 1.0:
+                self.velocity[0] = 0
 
         # Handle speed boost timer
         if self.speed_boost_active:

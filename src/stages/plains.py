@@ -37,6 +37,8 @@ Visual Theme:
 - Dynamic sky with weather effects
 - Realistic lighting that changes throughout the match
 - Organic, natural aesthetic contrasts with Battlefield's floating platforms
+
+A castle-like structure for vertical combat and platforming challenges.
 """
 
 from .base_stage import Stage, Platform, PlatformType
@@ -66,15 +68,15 @@ class Plains(Stage):
         that emphasizes horizontal movement and spacing over vertical play.
         """
         # Call parent constructor with ground-focused dimensions
-        super().__init__("Plains", 1400, 700)
+        super().__init__("Snowdin", 1400, 700)
         
         # === STAGE METADATA ===
         # Describes the stage's role and characteristics
-        self.description = "Wide open grasslands perfect for ground-based combat and spacing"
-        self.theme = "Natural Grasslands"
-        self.music_track = "plains_winds.ogg"
-        self.competitive_legal = True  # Tournament legal but different from Battlefield
-        self.difficulty_rating = "Intermediate"  # Requires good spacing and neutral game
+        self.description = "A castle-like structure for vertical combat."
+        self.theme = "Castle Siege"
+        self.music_track = "castle_theme.ogg" # Placeholder music
+        self.competitive_legal = True
+        self.difficulty_rating = "Intermediate"
         
         # === UNIQUE GRAVITY SETTINGS ===
         # These values create a heavier, more grounded feel
@@ -107,13 +109,13 @@ class Plains(Stage):
         # === VISUAL EFFECTS SETTINGS ===
         # Natural, organic visual elements
         self.enable_parallax = True        # Mountain/horizon parallax
-        self.grass_animation_speed = 0.3   # Swaying grass animation
+        self.grass_animation_speed = 0.0   # Swaying grass animation
         self.ambient_particle_count = 25   # More particles for natural feel
         self.lighting_intensity = 0.9      # Brighter natural lighting
         self.time_of_day = "midday"       # Affects lighting and shadows
         
         # Initialize all stage components
-        self.setup_platforms()     # Create minimal platform layout
+        self.setup_platforms()     # Create the castle platform layout
         self.setup_spawn_points()  # Define symmetric spawn positions
         self.setup_blast_zones()   # Set wide blast zone boundaries
         self.setup_terrain()       # Create natural ground variations
@@ -121,109 +123,186 @@ class Plains(Stage):
         self.setup_camera_bounds() # Define camera for wide stage
         self.setup_weather_system() # Initialize dynamic weather
         
-        print(f"✓ Plains stage initialized with {len(self.platforms)} platforms")
+        # Load the background image
+        self.background_image = pygame.image.load("assets/images/plains bg.png").convert()
+        self.background_image = pygame.transform.scale(self.background_image, (self.width, self.height))
+
+        # Initialize particles
+        self.particles = []
+
+        print(f"✓ Snowdin stage initialized with {len(self.platforms)} platforms")
         print(f"✓ Wind blowing {['left', 'right'][self.wind_direction == 1]} at {self.wind_strength:.1f} strength")
     
     def setup_platforms(self):
         """
-        Create the minimalist Plains platform layout
-        
+        Create the Castle platform layout.
+
         Platform Design Philosophy:
         ===========================
-        1. One massive main platform for ground-based combat
-        2. Small side platforms provide minimal vertical options
-        3. Wide spacing emphasizes horizontal movement
-        4. No central high platform (keeps action grounded)
-        
-        This layout forces players to engage in ground-based neutral game
-        rather than relying on platform movement for escapes.
+        1. A large central tower to act as a focal point for combat.
+        2. Side ledges on the tower to allow for climbing and vertical movement.
+        3. Walls on the side of the stage to prevent players from falling off.
+        4. A flat ground plane spanning the width of the stage.
         """
-        
-        # === MAIN PLATFORM (Massive Ground Level) ===
-        # This platform is much wider than Battlefield's to encourage spacing
-        main_platform_width = 1000  # Much wider than Battlefield (800px)
-        main_platform_height = 50   # Slightly thicker for visual weight
-        main_platform_x = (self.width - main_platform_width) // 2  # Perfect center
-        main_platform_y = self.height - 100  # Standard ground level
-        
+
+        # === MAIN PLATFORM (Ground Level) ===
+        main_platform_width = self.width  # Span the entire stage width
+        main_platform_height = 100
+        main_platform_x = 0
+        main_platform_y = self.height - 100
+
         self.main_platform = Platform(
             x=main_platform_x,
             y=main_platform_y,
             width=main_platform_width,
             height=main_platform_height,
-            platform_type=PlatformType.SOLID  # Solid foundation for ground game
+            platform_type=PlatformType.SOLID
         )
-        
-        # Add natural platform properties
-        self.main_platform.has_ledges = True      # Ledges for recovery
-        self.main_platform.surface_grip = 1.0     # Full traction on natural ground
-        self.main_platform.is_main_stage = True   # Primary fighting surface
-        self.main_platform.terrain_type = "grass" # Natural grass surface
-        self.main_platform.has_elevation_changes = True  # Subtle height variations
-        
+        self.main_platform.has_ledges = True
+        self.main_platform.surface_grip = 1.0
+        self.main_platform.is_main_stage = True
+        self.main_platform.terrain_type = "snow"
         self.platforms.append(self.main_platform)
-        print(f"✓ Main platform created: {main_platform_width}x{main_platform_height} (much wider than Battlefield)")
-        
-        # === SIDE PLATFORMS (Minimal Vertical Options) ===
-        # Small platforms on the far sides provide limited vertical gameplay
-        # Positioned much further apart than Battlefield to discourage platform camping
-        
-        side_platform_width = 120    # Smaller than Battlefield for less camping
-        side_platform_height = 18    # Thinner to feel less substantial
-        side_platform_y = main_platform_y - 120  # Lower than Battlefield (less vertical play)
-        
-        # Left side platform (far from center)
-        left_platform_x = main_platform_x + 80  # Further inset than Battlefield
-        left_platform = Platform(
-            x=left_platform_x,
-            y=side_platform_y,
-            width=side_platform_width,
-            height=side_platform_height,
-            platform_type=PlatformType.PASS_THROUGH  # Can still drop through
+        print(f"✓ Main ground platform created: {main_platform_width}x{main_platform_height}")
+
+        # === CASTLE TOWER ===
+        tower_width = 200
+        tower_height = 180  # Lowered for easier access
+        tower_x = (self.width - tower_width) / 2
+        tower_y = main_platform_y - tower_height
+
+        castle_tower = Platform(
+            x=tower_x,
+            y=tower_y,
+            width=tower_width,
+            height=tower_height,
+            platform_type=PlatformType.SOLID
         )
-        
-        # Natural platform properties
-        left_platform.drop_through_enabled = True
-        left_platform.has_ledges = False          # No ledges (discourages camping)
-        left_platform.terrain_type = "rock"       # Stone outcropping
-        left_platform.platform_id = "left_outcrop"
-        
-        self.platforms.append(left_platform)
-        
-        # Right side platform (mirror positioning)
-        right_platform_x = main_platform_x + main_platform_width - side_platform_width - 80
-        right_platform = Platform(
-            x=right_platform_x,
-            y=side_platform_y,
-            width=side_platform_width,
-            height=side_platform_height,
+        castle_tower.has_ledges = True
+        castle_tower.terrain_type = "rock"
+        castle_tower.platform_id = "castle_tower"
+        self.platforms.append(castle_tower)
+        print("✓ Castle tower created.")
+
+        # === SIDE TOWERS ===
+        side_tower_width = 150
+        side_tower_height = 120
+        side_tower_y = main_platform_y - side_tower_height
+
+        # Left Tower
+        left_tower_x = 150
+        left_tower = Platform(
+            x=left_tower_x,
+            y=side_tower_y,
+            width=side_tower_width,
+            height=side_tower_height,
+            platform_type=PlatformType.SOLID
+        )
+        left_tower.has_ledges = True
+        left_tower.terrain_type = "rock"
+        left_tower.platform_id = "left_side_tower"
+        self.platforms.append(left_tower)
+
+        # Right Tower
+        right_tower_x = self.width - 150 - side_tower_width
+        right_tower = Platform(
+            x=right_tower_x,
+            y=side_tower_y,
+            width=side_tower_width,
+            height=side_tower_height,
+            platform_type=PlatformType.SOLID
+        )
+        right_tower.has_ledges = True
+        right_tower.terrain_type = "rock"
+        right_tower.platform_id = "right_side_tower"
+        self.platforms.append(right_tower)
+        print("✓ Side towers created.")
+
+        # === FLOATING PLATFORMS ===
+        floating_platform_width = 120
+        floating_platform_height = 20
+        floating_platform_y = tower_y  # Same height as central tower
+
+        # Left floating platform
+        gap_left_start = left_tower_x + side_tower_width
+        gap_left_end = tower_x
+        left_floating_platform_x = gap_left_start + (gap_left_end - gap_left_start - floating_platform_width) / 2
+        left_floating_platform = Platform(
+            x=left_floating_platform_x,
+            y=floating_platform_y,
+            width=floating_platform_width,
+            height=floating_platform_height,
             platform_type=PlatformType.PASS_THROUGH
         )
+        left_floating_platform.has_ledges = True
+        left_floating_platform.drop_through_enabled = True
+        left_floating_platform.terrain_type = "rock"
+        left_floating_platform.platform_id = "left_floating_platform"
+        self.platforms.append(left_floating_platform)
+
+        # Right floating platform
+        gap_right_start = tower_x + tower_width
+        gap_right_end = right_tower_x
+        right_floating_platform_x = gap_right_start + (gap_right_end - gap_right_start - floating_platform_width) / 2
+        right_floating_platform = Platform(
+            x=right_floating_platform_x,
+            y=floating_platform_y,
+            width=floating_platform_width,
+            height=floating_platform_height,
+            platform_type=PlatformType.PASS_THROUGH
+        )
+        right_floating_platform.has_ledges = True
+        right_floating_platform.drop_through_enabled = True
+        right_floating_platform.terrain_type = "rock"
+        right_floating_platform.platform_id = "right_floating_platform"
+        self.platforms.append(right_floating_platform)
+        print("✓ Floating platforms created.")
+
+        # === STAGE WALLS ===
+        wall_width = 20
         
-        # Mirror properties from left platform
-        right_platform.drop_through_enabled = True
-        right_platform.has_ledges = False
-        right_platform.terrain_type = "rock"
-        right_platform.platform_id = "right_outcrop"
-        
-        self.platforms.append(right_platform)
-        
-        print(f"✓ Side platforms created: small stone outcroppings at {side_platform_y}")
-        print(f"✓ Platform layout emphasizes ground-based combat over vertical play")
-        
+        # Left Wall
+        left_wall = Platform(
+            x=0,
+            y=0,
+            width=wall_width,
+            height=main_platform_y,
+            platform_type=PlatformType.SOLID
+        )
+        left_wall.has_ledges = False
+        left_wall.platform_id = "left_wall"
+        left_wall.terrain_type = "rock"
+        self.platforms.append(left_wall)
+
+        # Right Wall
+        right_wall = Platform(
+            x=self.width - wall_width,
+            y=0,
+            width=wall_width,
+            height=main_platform_y,
+            platform_type=PlatformType.SOLID
+        )
+        right_wall.has_ledges = False
+        right_wall.platform_id = "right_wall"
+        right_wall.terrain_type = "rock"
+        self.platforms.append(right_wall)
+        print("✓ Stage walls created.")
+
         # === PLATFORM MEASUREMENT STORAGE ===
         # Store measurements for gameplay systems
         self.platform_heights = {
             'main': main_platform_y,
-            'side': side_platform_y,
-            'difference': main_platform_y - side_platform_y
+            'tower': tower_y,
+            'side_tower': side_tower_y,
+            'floating_platform': floating_platform_y
         }
         
         # Calculate spacing for AI and movement systems
         self.platform_distances = {
-            'side_to_side': right_platform_x - (left_platform_x + side_platform_width),
-            'main_width': main_platform_width,
-            'total_fighting_area': main_platform_width + (side_platform_width * 2)
+            'tower_width': tower_width,
+            'side_tower_width': side_tower_width,
+            'floating_platform_width': floating_platform_width,
+            'main_width': main_platform_width
         }
     
     def setup_terrain(self):
@@ -252,31 +331,12 @@ class Plains(Stage):
             self.elevation_changes.append({
                 'x': x_position,
                 'height_offset': elevation_offset,
-                'terrain_type': 'grass'
+                'terrain_type': 'snow'
             })
         
         # === SURFACE FRICTION ZONES ===
         # Different areas have slightly different movement properties
-        self.grass_friction_zones = [
-            {
-                'x': self.main_platform.x,
-                'width': self.main_platform.width * 0.3,
-                'friction_modifier': 0.9,  # Slightly less friction (fresher grass)
-                'type': 'fresh_grass'
-            },
-            {
-                'x': self.main_platform.x + (self.main_platform.width * 0.35),
-                'width': self.main_platform.width * 0.3,
-                'friction_modifier': 1.0,  # Standard friction
-                'type': 'normal_grass'
-            },
-            {
-                'x': self.main_platform.x + (self.main_platform.width * 0.7),
-                'width': self.main_platform.width * 0.3,
-                'friction_modifier': 0.9,  # Slightly less friction
-                'type': 'fresh_grass'
-            }
-        ]
+        self.grass_friction_zones = []
         
         print("✓ Natural terrain variations created for visual and tactical variety")
     
@@ -453,44 +513,6 @@ class Plains(Stage):
         - Performance-optimized effects maintain smooth gameplay
         """
         
-        # === BACKGROUND LAYERS ===
-        # Natural parallax layers for depth and atmosphere
-        self.background_layers = [
-            {
-                "name": "sky_gradient",           # Dynamic sky based on weather
-                "type": "gradient",
-                "colors": [(135, 206, 235), (176, 224, 230)],  # Sky blue to light blue
-                "scroll_speed": 0.0,              # Static background
-                "opacity": 255,
-                "weather_affected": True          # Changes with cloud coverage
-            },
-            {
-                "name": "distant_mountains",      # Far mountain range
-                "type": "mountains",
-                "scroll_speed": 0.05,             # Very slow parallax
-                "color": (80, 100, 120),          # Blue-gray silhouette
-                "opacity": 180,
-                "layer_depth": "far"
-            },
-            {
-                "name": "rolling_hills",          # Mid-distance hills
-                "type": "hills",
-                "scroll_speed": 0.15,             # Moderate parallax
-                "color": (60, 120, 60),           # Dark green
-                "opacity": 120,
-                "layer_depth": "mid"
-            },
-            {
-                "name": "foreground_grass",       # Nearby grass details
-                "type": "grass_details",
-                "scroll_speed": 0.8,              # Fast parallax (close)
-                "color": (34, 139, 34),           # Grass green
-                "opacity": 80,
-                "layer_depth": "near",
-                "animated": True                  # Sways with wind
-            }
-        ]
-        
         # === PARTICLE EFFECTS ===
         # Natural atmospheric particles
         self.particle_system = {
@@ -500,20 +522,12 @@ class Plains(Stage):
             "wind_affected": True,            # Particles move with wind
             "particle_types": [
                 {
-                    "type": "pollen",
-                    "size_range": (1, 2),
-                    "color": (255, 255, 150, 40),  # Yellow pollen
-                    "speed_range": (0.2, 0.8),
-                    "lifetime_range": (400, 800),   # Longer lifetime
-                    "wind_sensitivity": 1.5         # Strongly affected by wind
-                },
-                {
-                    "type": "grass_seeds",
+                    "type": "snowflakes",
                     "size_range": (1, 3),
-                    "color": (200, 180, 120, 30),  # Brown seeds
-                    "speed_range": (0.1, 0.6),
-                    "lifetime_range": (300, 600),
-                    "wind_sensitivity": 2.0         # Very wind-sensitive
+                    "color": (255, 255, 255, 180),  # White snowflakes
+                    "speed_range": (0.5, 1.5),
+                    "lifetime_range": (400, 800),
+                    "wind_sensitivity": 1.2
                 },
                 {
                     "type": "dust_motes",
@@ -554,12 +568,12 @@ class Plains(Stage):
         # Natural materials and textures
         self.platform_visuals = {
             "main_platform": {
-                "base_color": (101, 67, 33),     # Rich earth brown
-                "grass_color": (34, 139, 34),    # Vibrant grass green
+                "base_color": (128, 128, 140),     # Cold earth brown
+                "snow_color": (255, 255, 255),    # White snow
                 "edge_color": (80, 50, 20),      # Darker earth edges
-                "texture": "natural_earth",      # Organic texture
-                "has_grass": True,               # Grass layer on top
-                "grass_density": 0.8,            # Thick grass coverage
+                "texture": "snowy_ground",      # Organic texture
+                "has_snow": True,               # Snow layer on top
+                "snow_density": 0.9,            # Thick snow coverage
                 "shadow_opacity": 100,
                 "weathering": True               # Shows natural wear
             },
@@ -842,106 +856,19 @@ class Plains(Stage):
     
     def render_background(self, screen, camera_offset):
         """
-        Render the Plains background with natural parallax effects
+        Render the Plains background with a static image and particle effects.
         
         Args:
             screen: Pygame surface to render to
             camera_offset: (x, y) tuple of camera position offset
         """
         
-        # === RENDER SKY ===
-        # Natural sky color that changes based on cloud coverage
-        base_sky_color = (135, 206, 235)  # Sky blue
-        
-        # Adjust sky color based on cloud coverage
-        cloud_influence = self.cloud_coverage * 0.3
-        sky_color = (
-            int(base_sky_color[0] * (1.0 - cloud_influence)),
-            int(base_sky_color[1] * (1.0 - cloud_influence)),
-            int(base_sky_color[2] * (1.0 - cloud_influence * 0.5))
-        )
-        
-        screen.fill(sky_color)
-        
-        # === RENDER DISTANT MOUNTAINS ===
-        # Parallax background mountains for depth
-        self.render_mountain_background(screen, camera_offset)
-        
-        # === RENDER CLOUD LAYERS ===
-        # Multiple cloud layers for natural sky
-        self.render_cloud_layers(screen, camera_offset)
+        # Render the static background image
+        screen.blit(self.background_image, (0, 0))
         
         # === RENDER ATMOSPHERIC PARTICLES ===
-        # Natural particles like pollen or dust
+        # Natural particles like snow
         self.render_atmospheric_particles(screen, camera_offset)
-    
-    def render_mountain_background(self, screen, camera_offset):
-        """
-        Render distant mountain silhouettes for depth
-        
-        Args:
-            screen: Pygame surface to render to
-            camera_offset: Camera position for parallax calculation
-        """
-        
-        # Calculate parallax offset (mountains move very slowly)
-        parallax_factor = 0.05
-        mountain_offset_x = camera_offset[0] * parallax_factor
-        
-        # Mountain silhouette color (darker than sky)
-        mountain_color = (80, 100, 120)
-        
-        # Render simple mountain shapes
-        mountain_points = [
-            # Left mountain range
-            (0 - mountain_offset_x, screen.get_height()),
-            (200 - mountain_offset_x, screen.get_height() - 150),
-            (400 - mountain_offset_x, screen.get_height() - 100),
-            (600 - mountain_offset_x, screen.get_height()),
-            
-            # Right mountain range  
-            (800 - mountain_offset_x, screen.get_height()),
-            (1000 - mountain_offset_x, screen.get_height() - 120),
-            (1200 - mountain_offset_x, screen.get_height() - 80),
-            (1400 - mountain_offset_x, screen.get_height())
-        ]
-        
-        # Draw mountain silhouettes
-        if len(mountain_points) >= 3:
-            pygame.draw.polygon(screen, mountain_color, mountain_points[:4])
-            if len(mountain_points) >= 7:
-                pygame.draw.polygon(screen, mountain_color, mountain_points[4:])
-    
-    def render_cloud_layers(self, screen, camera_offset):
-        """
-        Render natural cloud formations
-        
-        Args:
-            screen: Pygame surface to render to
-            camera_offset: Camera position for parallax calculation
-        """
-        
-        # Render clouds based on coverage and wind
-        cloud_count = int(5 + self.cloud_coverage * 8)
-        
-        for i in range(cloud_count):
-            # Calculate cloud position with parallax and wind movement
-            parallax_factor = 0.1 + (i * 0.05)  # Different layers move at different speeds
-            wind_offset = self.total_elapsed_time * self.wind_direction * 20
-            
-            cloud_x = (i * 300 + wind_offset - camera_offset[0] * parallax_factor) % (screen.get_width() + 400) - 200
-            cloud_y = 30 + (i * 20) % 80
-            
-            # Cloud properties
-            cloud_size = 80 + (i * 15) % 60
-            cloud_opacity = int(40 + self.cloud_coverage * 60)
-            
-            # Render cloud
-            cloud_surface = pygame.Surface((cloud_size, cloud_size // 2), pygame.SRCALPHA)
-            cloud_color = (255, 255, 255, cloud_opacity)
-            pygame.draw.ellipse(cloud_surface, cloud_color, (0, 0, cloud_size, cloud_size // 2))
-            
-            screen.blit(cloud_surface, (cloud_x, cloud_y))
     
     def render_atmospheric_particles(self, screen, camera_offset):
         """
@@ -952,28 +879,22 @@ class Plains(Stage):
             camera_offset: Camera position for parallax calculation
         """
         
-        # Render floating particles affected by wind
-        particle_count = self.ambient_particle_count
-        
-        for i in range(particle_count):
-            # Calculate particle position with wind influence
-            wind_influence = self.wind_direction * self.wind_strength * 50
-            particle_x = (i * 100 + self.total_elapsed_time * 15 + wind_influence) % screen.get_width()
-            particle_y = (i * 80 + math.sin(self.total_elapsed_time + i) * 30) % screen.get_height()
+        # Update and render particles
+        for particle in self.particles:
+            particle['x'] += particle['vx']
+            particle['y'] += particle['vy']
+            particle['lifetime'] -= 1
             
-            # Apply camera parallax
-            particle_x -= camera_offset[0] * 0.05
-            particle_y -= camera_offset[1] * 0.05
-            
-            # Particle properties
-            particle_size = 1 + (i % 3)
-            particle_color = (255, 255, 200, 30)  # Warm, natural color
-            
-            # Render particle
-            particle_surface = pygame.Surface((particle_size * 2, particle_size * 2), pygame.SRCALPHA)
-            pygame.draw.circle(particle_surface, particle_color, (particle_size, particle_size), particle_size)
-            
-            screen.blit(particle_surface, (particle_x, particle_y))
+            # Apply wind
+            particle['x'] += self.wind_direction * self.wind_strength * 0.5
+
+            screen_x = particle['x'] - camera_offset[0]
+            screen_y = particle['y'] - camera_offset[1]
+
+            pygame.draw.circle(screen, particle['color'], (screen_x, screen_y), particle['size'])
+
+        # Remove dead particles
+        self.particles = [p for p in self.particles if p['lifetime'] > 0]
     
     def render_platforms(self, screen, camera_offset):
         """
@@ -997,19 +918,19 @@ class Plains(Stage):
             if platform == self.main_platform:
                 # Main platform: natural grass and dirt
                 base_color = (101, 67, 33)  # Rich brown earth
-                grass_color = (34, 139, 34)  # Forest green grass
+                snow_color = (255, 255, 255)  # White snow
                 
                 # Render earth base
                 platform_rect = pygame.Rect(screen_x, screen_y, platform.width, platform.height)
                 pygame.draw.rect(screen, base_color, platform_rect)
                 
                 # Add grass layer on top
-                grass_height = 8
-                grass_rect = pygame.Rect(screen_x, screen_y - grass_height, platform.width, grass_height)
-                pygame.draw.rect(screen, grass_color, grass_rect)
+                snow_height = 8
+                snow_rect = pygame.Rect(screen_x, screen_y - snow_height, platform.width, snow_height)
+                pygame.draw.rect(screen, snow_color, snow_rect)
                 
                 # Add grass texture with swaying effect
-                self.render_grass_texture(screen, grass_rect, camera_offset)
+                self.render_snow_texture(screen, snow_rect, camera_offset)
                 
             else:
                 # Side platforms: rocky outcroppings
@@ -1024,35 +945,19 @@ class Plains(Stage):
                                (screen_x, screen_y),
                                (screen_x + platform.width, screen_y), 2)
     
-    def render_grass_texture(self, screen, grass_rect, camera_offset):
+    def render_snow_texture(self, screen, snow_rect, camera_offset):
         """
-        Render animated grass texture on the main platform
+        Render animated snow texture on the main platform
         
         Args:
             screen: Pygame surface to render to
-            grass_rect: Rectangle area to render grass in
+            snow_rect: Rectangle area to render snow in
             camera_offset: Camera position offset
         """
         
-        # Render individual grass blades with swaying animation
-        grass_blade_count = grass_rect.width // 8  # One blade every 8 pixels
-        
-        for i in range(grass_blade_count):
-            blade_x = grass_rect.x + (i * 8)
-            blade_base_y = grass_rect.bottom
-            blade_height = random.randint(3, 6)
-            
-            # Calculate sway based on wind and grass animation phase
-            grass_phase = getattr(self, 'grass_sway_phase', 0.0)
-            sway_amount = math.sin(grass_phase + i * 0.5) * self.wind_strength * 2
-            blade_top_x = blade_x + sway_amount
-            blade_top_y = blade_base_y - blade_height
-            
-            # Render grass blade
-            grass_color = (34, 139, 34)
-            pygame.draw.line(screen, grass_color,
-                           (blade_x, blade_base_y),
-                           (blade_top_x, blade_top_y), 1)
+        # Render a solid layer of snow
+        snow_color = (255, 255, 255)
+        pygame.draw.rect(screen, snow_color, snow_rect)
     
     def render_platform_shadow(self, screen, platform, camera_offset):
         """
@@ -1083,7 +988,7 @@ class Plains(Stage):
     
     def get_stage_info(self):
         """
-        Get comprehensive information about the Plains stage
+        Get comprehensive information about the Snowdin stage
         
         Returns:
             dict: Complete stage information including unique features and mechanics
@@ -1102,10 +1007,10 @@ class Plains(Stage):
             "competitive_legal": self.competitive_legal,
             "tournament_approved": True,
             "skill_level": "Intermediate to Advanced",
-            "character_advantages": "Favors spacing and neutral game specialists",
+            "character_advantages": "Balanced with multiple levels for combat",
             
             # === LAYOUT INFORMATION ===
-            "platform_layout": "Wide ground-focused design",
+            "platform_layout": "Castle with multiple platforms",
             "platform_count": len(self.platforms),
             "main_platform_width": self.platform_distances['main_width'],
             "has_ledges": True,
@@ -1120,11 +1025,11 @@ class Plains(Stage):
             "wind_effects": self.weather_enabled,
             
             # === VISUAL FEATURES ===
-            "natural_theme": True,
+            "natural_theme": False,
             "weather_system": self.weather_enabled,
             "terrain_variation": True,
-            "grass_animation": True,
-            "mountain_parallax": True,
+            "grass_animation": False,
+            "mountain_parallax": False,
             
             # === GAMEPLAY DIFFERENCES ===
             "compared_to_battlefield": {
@@ -1137,25 +1042,23 @@ class Plains(Stage):
             
             # === RECOMMENDATIONS ===
             "recommended_for": [
-                "Neutral game practice",
-                "Spacing and footsies",
-                "Projectile character training",
-                "Ground-based combat",
-                "Fundamental skill development"
+                "Vertical and horizontal combat",
+                "Platforming skills",
+                "Controlling space",
+                "Defensive and offensive play"
             ],
             
             "strategies": [
-                "Master precise spacing and movement",
-                "Utilize the wide platform for neutral game",
-                "Practice projectile zoning techniques",
-                "Learn to control center stage",
-                "Develop ground-based combo routes"
+                "Use platforms for mixups and escapes",
+                "Control center stage to apply pressure",
+                "Utilize walls for defense",
+                "Master movement between levels"
             ],
             
             "character_types": {
-                "excellent": ["Zoners", "Spacing specialists", "Projectile users"],
-                "good": ["Grapplers", "Rushdown with good neutral"],
-                "challenging": ["Pure aerial fighters", "Platform movement specialists"]
+                "excellent": ["All-rounders", "Characters with strong aerials"],
+                "good": ["Zoners", "Rushdown characters"],
+                "challenging": ["Characters with poor vertical recovery"]
             }
         }
         
