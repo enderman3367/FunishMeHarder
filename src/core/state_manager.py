@@ -19,6 +19,7 @@ from src.characters.speedster import Speedster
 from src.characters.heavy import Heavy
 import os
 import random
+import math
 
 class GameStateType(Enum):
     """
@@ -33,6 +34,7 @@ class GameStateType(Enum):
     PAUSE = "pause"
     RESULTS = "results"
     OPTIONS = "options"
+    TOYBOX = "toybox"
 
 class GameState:
     """
@@ -741,11 +743,30 @@ class SimpleMenuState(GameState):
         except pygame.error:
             self.title_music = None
             print("Warning: Could not load title.mp3")
+        
+        # Toybox sidebar properties
+        self.toybox_visible = False
+        self.toybox_width = 200
+        self.toybox_slide_offset = -self.toybox_width  # Start off-screen
+        self.toybox_glow_timer = 0.0
+        self.toybox_accessible = True  # Always accessible via special button
+        self.toybox_font = None
 
     def enter(self):
         """Called when entering this state."""
         if self.title_music:
             self.title_music.play(loops=-1)
+        
+        # Initialize fonts
+        try:
+            self.toybox_font = pygame.font.Font(None, 36)
+        except:
+            self.toybox_font = pygame.font.SysFont("Arial", 36)
+        
+        # Reset toybox animations
+        self.toybox_visible = False
+        self.toybox_slide_offset = -self.toybox_width
+        self.toybox_glow_timer = 0.0
 
     def exit(self):
         """Called when leaving this state."""
@@ -755,7 +776,12 @@ class SimpleMenuState(GameState):
     def handle_event(self, event):
         # Handle Keyboard Input
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP or event.key == pygame.K_w:
+            # Check for toybox access key (equals)
+            if event.key == pygame.K_EQUALS:
+                if self.toybox_accessible:
+                    self.state_manager.change_state(GameStateType.TOYBOX)
+                return True
+            elif event.key == pygame.K_UP or event.key == pygame.K_w:
                 self.selected_option = (self.selected_option - 1) % len(self.menu_options)
                 return True
             elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
@@ -767,8 +793,14 @@ class SimpleMenuState(GameState):
         
         # Handle Joystick Input
         if event.type == pygame.JOYBUTTONDOWN:
+            # Check for start/select/plus buttons to access toybox
+            # Common button indices for start/select: 6, 7, 8, 9
+            if event.button in [6, 7, 8, 9]:
+                if self.toybox_accessible:
+                    self.state_manager.change_state(GameStateType.TOYBOX)
+                return True
             # P1 Attack button confirms selection
-            if event.button == 3: # Corresponds to dpad_right on L Joy-Con
+            elif event.button == 3: # Corresponds to dpad_right on L Joy-Con
                 self.select_option()
                 return True
         
@@ -789,6 +821,15 @@ class SimpleMenuState(GameState):
             self.state_manager.change_state(GameStateType.CHARACTER_SELECT)
         elif self.selected_option == 1:  # Quit
             pygame.event.post(pygame.event.Event(pygame.QUIT))
+    
+    def update(self, delta_time):
+        """Update menu animations."""
+        # Update toybox glow animation
+        self.toybox_glow_timer += delta_time
+        
+        # Smooth slide animation for toybox sidebar
+        target_slide = 0 if self.toybox_visible else -self.toybox_width
+        self.toybox_slide_offset += (target_slide - self.toybox_slide_offset) * 0.1
     
     def render(self, screen):
         # Draw background
@@ -845,6 +886,98 @@ class SimpleMenuState(GameState):
         instr_rect = instr_text.get_rect(center=(640, 550))
         screen.blit(instr_shadow, (instr_rect.x + 1, instr_rect.y + 1))
         screen.blit(instr_text, instr_rect)
+        
+        # Render toybox sidebar
+        self.render_toybox_sidebar(screen, 1280, 720)
+    
+    def render_toybox_sidebar(self, screen, screen_width, screen_height):
+        """Render the toybox sidebar with chroma glow effect."""
+        # Calculate sidebar position
+        sidebar_x = screen_width + self.toybox_slide_offset
+        
+        # Draw sidebar background
+        sidebar_rect = pygame.Rect(sidebar_x, 0, self.toybox_width, screen_height)
+        sidebar_surface = pygame.Surface((self.toybox_width, screen_height), pygame.SRCALPHA)
+        sidebar_surface.fill((20, 20, 30, 200))  # Semi-transparent dark background
+        
+        # Draw chroma glow border
+        self.render_chroma_glow(sidebar_surface, self.toybox_width, screen_height)
+        
+        # Render "TOYBOX" text vertically
+        if self.toybox_font:
+            text = "TOYBOX"
+            char_height = 40
+            start_y = (screen_height - len(text) * char_height) // 2
+            
+            for i, char in enumerate(text):
+                # Calculate color for chroma effect
+                hue = (self.toybox_glow_timer * 100 + i * 30) % 360
+                color = self.hsv_to_rgb(hue, 1.0, 1.0)
+                
+                char_surface = self.toybox_font.render(char, True, color)
+                char_rect = char_surface.get_rect(center=(self.toybox_width // 2, start_y + i * char_height))
+                sidebar_surface.blit(char_surface, char_rect)
+        
+        # Blit sidebar to screen
+        screen.blit(sidebar_surface, (sidebar_x, 0))
+        
+        # Draw hint at edge of screen if sidebar is hidden
+        if not self.toybox_visible and self.toybox_accessible:
+            hint_width = 5
+            hint_rect = pygame.Rect(screen_width - hint_width, 0, hint_width, screen_height)
+            
+            # Animated chroma glow hint
+            for y in range(0, screen_height, 10):
+                hue = (self.toybox_glow_timer * 100 + y) % 360
+                color = self.hsv_to_rgb(hue, 1.0, 0.5)
+                pygame.draw.rect(screen, color, (screen_width - hint_width, y, hint_width, 10))
+    
+    def render_chroma_glow(self, surface, width, height):
+        """Render a chroma glow effect around the edges of a surface."""
+        border_width = 3
+        
+        # Draw animated rainbow border
+        for i in range(border_width):
+            for y in range(0, height, 5):
+                # Calculate color based on position and time
+                hue = (self.toybox_glow_timer * 100 + y) % 360
+                color = self.hsv_to_rgb(hue, 1.0, 1.0 - (i * 0.3))
+                
+                # Left border
+                pygame.draw.rect(surface, color, (i, y, 1, 5))
+                # Right border
+                pygame.draw.rect(surface, color, (width - i - 1, y, 1, 5))
+            
+            for x in range(0, width, 5):
+                hue = (self.toybox_glow_timer * 100 + x) % 360
+                color = self.hsv_to_rgb(hue, 1.0, 1.0 - (i * 0.3))
+                
+                # Top border
+                pygame.draw.rect(surface, color, (x, i, 5, 1))
+                # Bottom border
+                pygame.draw.rect(surface, color, (x, height - i - 1, 5, 1))
+    
+    def hsv_to_rgb(self, h, s, v):
+        """Convert HSV color to RGB."""
+        h = h / 360.0
+        c = v * s
+        x = c * (1 - abs((h * 6) % 2 - 1))
+        m = v - c
+        
+        if h < 1/6:
+            r, g, b = c, x, 0
+        elif h < 2/6:
+            r, g, b = x, c, 0
+        elif h < 3/6:
+            r, g, b = 0, c, x
+        elif h < 4/6:
+            r, g, b = 0, x, c
+        elif h < 5/6:
+            r, g, b = x, 0, c
+        else:
+            r, g, b = c, 0, x
+        
+        return (int((r + m) * 255), int((g + m) * 255), int((b + m) * 255))
 
 class StateManager:
     """
@@ -891,6 +1024,7 @@ class StateManager:
         from src.ui.stage_select import StageSelectState
         from src.ui.versus_screen import VersusScreenState
         from src.ui.win_screen import WinScreenState
+        from src.ui.toybox import ToyboxState
         
         # Create all states
         self.states[GameStateType.MAIN_MENU] = SimpleMenuState(self)
@@ -899,6 +1033,7 @@ class StateManager:
         self.states[GameStateType.VERSUS_SCREEN] = VersusScreenState(self)
         self.states[GameStateType.GAMEPLAY] = GameplayState(self)
         self.states[GameStateType.WIN_SCREEN] = WinScreenState(self)
+        self.states[GameStateType.TOYBOX] = ToyboxState(self)
     
     def change_state(self, state_type):
         """

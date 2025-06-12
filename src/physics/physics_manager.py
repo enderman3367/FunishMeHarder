@@ -257,16 +257,19 @@ class PhysicsManager:
             # === FALLBACK TO STANDARD PHYSICS ===
             # Apply standard gravity when stage doesn't have custom physics
             if not character.is_on_ground():
-                print(f"🌊 Applying standard gravity to P{character.player_id}: {self.gravity}")
+                # Apply gravity with character-specific multiplier for effects
+                gravity_to_apply = self.gravity * character.gravity_multiplier
+                
+                print(f"🌊 Applying standard gravity to P{character.player_id}: {gravity_to_apply}")
                 # Standard gravity application
-                character.velocity[1] += self.gravity
+                character.velocity[1] += gravity_to_apply
                 
                 # Standard air friction
                 character.velocity[0] *= (1.0 - self.air_friction)
                 
-                # Standard terminal velocity cap
-                if character.velocity[1] > self.terminal_velocity:
-                    character.velocity[1] = self.terminal_velocity
+                # Standard terminal velocity cap (also respects multiplier)
+                if character.velocity[1] > self.terminal_velocity * character.gravity_multiplier:
+                    character.velocity[1] = self.terminal_velocity * character.gravity_multiplier
             else:
                 print(f"🏃 Applying ground friction to P{character.player_id}: {self.ground_friction}")
                 # Standard ground friction
@@ -653,9 +656,17 @@ class PhysicsManager:
     
     def check_combat_collisions(self, characters):
         """
-        Check collisions between attack hitboxes and character hurtboxes
+        Check for hitbox collisions and player-to-player collisions for effect spreading.
         """
-        # --- NEW: Body Slam Collision Check ---
+        # --- PLAYER-TO-PLAYER BODY COLLISION FOR EFFECT SPREADING ---
+        if len(characters) >= 2:
+            p1 = characters[0]
+            p2 = characters[1]
+            if p1.get_collision_rect().colliderect(p2.get_collision_rect()):
+                self._spread_effects(p1, p2)
+
+        # --- HITBOX VS HURTBOX (TODO) ---
+        all_hitboxes = []
         for attacker in characters:
             if attacker.is_attacking and attacker.current_attack and attacker.current_attack.get('is_body_slam'):
                 attacker_rect = attacker.get_collision_rect()
@@ -740,9 +751,30 @@ class PhysicsManager:
                 if hitbox in attacker.active_hitboxes:
                     attacker.active_hitboxes.remove(hitbox)
 
+    def _spread_effects(self, p1, p2):
+        """Spreads active effects between two players upon collision."""
+        p1_effects = dict(p1.active_effects)
+        p2_effects = dict(p2.active_effects)
+
+        # Spread from P1 to P2
+        for effect, is_active in p1_effects.items():
+            if is_active and effect not in p2_effects:
+                remaining_time = p1.effect_timers.get(effect, 0)
+                if remaining_time > 0:
+                    print(f"✨ Effect '{effect}' spread from Player 1 to Player 2!")
+                    p2.apply_effect(effect, remaining_time)
+
+        # Spread from P2 to P1
+        for effect, is_active in p2_effects.items():
+            if is_active and effect not in p1_effects:
+                remaining_time = p2.effect_timers.get(effect, 0)
+                if remaining_time > 0:
+                    print(f"✨ Effect '{effect}' spread from Player 2 to Player 1!")
+                    p1.apply_effect(effect, remaining_time)
+
     def apply_hit(self, hitbox, target_character):
         """
-        Apply hit effects to target character
+        Apply damage and knockback from a hitbox to a character.
         """
         # Calculate knockback direction based on attacker position and angle
         attacker = hitbox['owner']
@@ -766,7 +798,7 @@ class PhysicsManager:
         
         knockback_vector = [knockback_x, knockback_y]
         
-        # Apply damage and knockback
+        # Apply damage, knockback, and hitstun
         target_character.take_damage(
             hitbox['damage'], 
             knockback_vector, 

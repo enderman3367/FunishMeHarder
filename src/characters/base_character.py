@@ -98,6 +98,7 @@ class Character:
         # Movement formula: velocity * 60 * delta_time = pixels_per_frame
         self.jump_strength = 15.0
         self.short_hop_strength = 8.0   # For light jump inputs
+        self.gravity_multiplier = 1.0
         
         # Character stats (Smash Bros style - damage goes UP from 0%)
         self.lives = 3
@@ -144,6 +145,10 @@ class Character:
         self.is_ko = False
         self.ko_direction = None
         self.respawn_invincibility = 0
+        
+        # --- Wonder Sequence Effects ---
+        self.active_effects = {} # e.g., {"anti_gravity": True}
+        self.effect_timers = {}  # e.g., {"anti_gravity": 20.0}
         
         self.player_id = player_id
         
@@ -236,6 +241,9 @@ class Character:
         if self.can_act and self.hit_stun_timer <= 0:
             self.handle_input(player_input)
         
+        # Update active effects
+        self.update_effects(delta_time)
+        
         # Update physics
         self.update_physics(delta_time)
         
@@ -254,16 +262,23 @@ class Character:
         """
         Process player input with smooth movement and Smash-style attacks
         """
+        # Check for control inversion effect
+        is_inverted = 'inversion' in self.active_effects
+        
         print(f"🎮 Input P{self.player_id}: Processing input, on_ground={self.on_ground}")
         
         # Movement input with smooth acceleration
         horizontal_input = 0.0
-        if player_input.is_pressed('left'):
+        
+        left_pressed = player_input.is_pressed('right') if is_inverted else player_input.is_pressed('left')
+        right_pressed = player_input.is_pressed('left') if is_inverted else player_input.is_pressed('right')
+
+        if left_pressed:
             horizontal_input -= 1.0
             if self.facing_right:
                 self.facing_right = False
             print(f"   ⬅️ Left input: {horizontal_input}")
-        if player_input.is_pressed('right'):
+        if right_pressed:
             horizontal_input += 1.0
             if not self.facing_right:
                 self.facing_right = True
@@ -843,4 +858,62 @@ class Character:
         else:
             self.change_state(CharacterState.FALLING)
         
-        print(f"Player {self.player_id} attack ended")  # Debug 
+        print(f"Player {self.player_id} attack ended")  # Debug
+    
+    def apply_effect(self, effect_name, duration=20.0):
+        """Applies a Wonder Sequence effect to the character."""
+        print(f"Applying effect '{effect_name}' to Player {self.player_id} for {duration}s")
+        
+        self.remove_all_effects()
+
+        self.active_effects[effect_name] = True
+        self.effect_timers[effect_name] = duration
+
+        if effect_name == "shrink":
+            self.width, self.height = 25, 25
+        elif effect_name == "balloon":
+            self.jump_strength = 20.0
+            self.gravity_multiplier = 0.4
+        elif effect_name == "anti_gravity":
+            self.gravity_multiplier = 0
+            self.velocity[1] = 0
+        elif effect_name == "gravity_flip":
+            self.gravity_multiplier = -1
+        elif effect_name == "stick":
+            # This will be handled in the physics manager
+            pass
+
+    def remove_effect(self, effect_name):
+        """Removes an active effect and resets any related character stats."""
+        if effect_name in self.active_effects:
+            print(f"Removing effect '{effect_name}' from Player {self.player_id}")
+            del self.active_effects[effect_name]
+            del self.effect_timers[effect_name]
+            self.reset_to_default_stats()
+
+    def remove_all_effects(self):
+        """Removes all active effects from the character."""
+        for effect in list(self.active_effects.keys()):
+            if effect in self.active_effects:
+                del self.active_effects[effect]
+            if effect in self.effect_timers:
+                del self.effect_timers[effect]
+        self.reset_to_default_stats()
+
+    def reset_to_default_stats(self):
+        """Resets a character's stats to their default values."""
+        self.width, self.height = 50, 50
+        self.max_walk_speed, self.max_run_speed = 8.0, 12.0
+        self.ground_acceleration = 1.2
+        self.jump_strength = 15.0
+        self.gravity_multiplier = 1.0
+
+    def update_effects(self, delta_time):
+        """Updates all active effect timers and removes them when they expire."""
+        if not self.effect_timers:
+            return
+            
+        for effect in list(self.effect_timers.keys()):
+            self.effect_timers[effect] -= delta_time
+            if self.effect_timers[effect] <= 0:
+                self.remove_effect(effect) 
