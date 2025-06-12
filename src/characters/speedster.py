@@ -218,10 +218,12 @@ class Speedster(Character):
                 'range': 65,
                 'has_movement': True
             }
+            """bug"""
             # Add forward momentum during attack
-            momentum = 8 if self.facing_right else -8
-            self.velocity[0] = momentum
-            self.side_attack_cooldown = self.side_attack_cooldown_duration
+            # momentum = 8 if self.facing_right else -8
+            # self.velocity[0] = momentum
+            # self.side_attack_cooldown = self.side_attack_cooldown_duration
+
         elif direction == 'side_special':
             if self.side_special_cooldown > 0:
                 print("Side special is on cooldown!")
