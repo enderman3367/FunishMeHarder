@@ -142,11 +142,14 @@ class Plains(Stage):
         size = random.randint(1, 3)
         lifetime = random.randint(300, 600) # Frames
         
-        self.particles.append({
+        particle = {
             'x': x, 'y': y, 'vx': vx, 'vy': vy, 
             'size': size, 'lifetime': lifetime, 'landed_timer': -1,
             'color': (255, 255, 255, random.randint(150, 220))
-        })
+        }
+        
+        self.particles.append(particle)
+        print(f"🌨️ Spawned snow particle at ({x:.1f}, {y:.1f}), total particles: {len(self.particles)}")
 
     def setup_platforms(self):
         """
@@ -273,36 +276,6 @@ class Plains(Stage):
         self.platforms.append(right_floating_platform)
         print("✓ Floating platforms created.")
 
-        # === STAGE WALLS ===
-        wall_width = 20
-        
-        # Left Wall
-        left_wall = Platform(
-            x=0,
-            y=0,
-            width=wall_width,
-            height=main_platform_y,
-            platform_type=PlatformType.SOLID
-        )
-        left_wall.has_ledges = False
-        left_wall.platform_id = "left_wall"
-        left_wall.terrain_type = "rock"
-        self.platforms.append(left_wall)
-
-        # Right Wall
-        right_wall = Platform(
-            x=self.width - wall_width,
-            y=0,
-            width=wall_width,
-            height=main_platform_y,
-            platform_type=PlatformType.SOLID
-        )
-        right_wall.has_ledges = False
-        right_wall.platform_id = "right_wall"
-        right_wall.terrain_type = "rock"
-        self.platforms.append(right_wall)
-        print("✓ Stage walls created.")
-
         # === PLATFORM MEASUREMENT STORAGE ===
         # Store measurements for gameplay systems
         self.platform_heights = {
@@ -407,26 +380,26 @@ class Plains(Stage):
         - Balanced to prevent excessive camping or stalling
         """
         
-        # Horizontal blast zones (adjusted for wider stage)
-        horizontal_distance = 320  # Wider than Battlefield (280px)
+        # Horizontal blast zones (adjusted for side KOs)
+        horizontal_distance = 200  # Closer than before for easier side KOs
         self.left_blast_zone = -horizontal_distance
         self.right_blast_zone = self.width + horizontal_distance
         
-        # Vertical blast zones (adjusted for gravity changes)
-        top_distance = 220        # Closer than Battlefield (compensates for stronger gravity)
-        bottom_distance = 300     # Closer than Battlefield (easier spike KOs)
+        # Vertical blast zones (adjusted for better visibility)
+        top_distance = 200        # Top blast zone
+        bottom_distance = 200     # Much closer bottom blast zone for better particle visibility
         
         self.top_blast_zone = -top_distance
         self.bottom_blast_zone = self.height + bottom_distance
         
-        print(f"✓ Blast zones adjusted for wider stage: X±{horizontal_distance}, Y+{top_distance}/-{bottom_distance}")
+        print(f"✓ Blast zones set for side KOs: X±{horizontal_distance}, Y+{top_distance}/-{bottom_distance}")
         
         # Store blast zone information
         self.blast_zone_info = {
             'horizontal_distance': horizontal_distance,
             'top_distance': top_distance,
             'bottom_distance': bottom_distance,
-            'width_advantage': horizontal_distance - 280,  # Compared to Battlefield
+            'allows_side_kos': True,  # New flag
             'total_width': self.right_blast_zone - self.left_blast_zone,
             'total_height': self.bottom_blast_zone - self.top_blast_zone
         }
@@ -766,6 +739,9 @@ class Plains(Stage):
         if random.random() < 0.5: # Spawn roughly every other frame
             self.spawn_particle()
         
+        # Update existing particles
+        self.update_particles()
+        
         # === UPDATE WEATHER SYSTEM ===
         if self.weather_enabled:
             self.update_weather_effects(delta_time)
@@ -873,41 +849,9 @@ class Plains(Stage):
             
             self.current_lighting_intensity = current_intensity + flicker
     
-    def render_background(self, screen, camera_offset):
-        """
-        Render the Plains background with a static image and particle effects.
-        
-        Args:
-            screen: Pygame surface to render to
-            camera_offset: (x, y) tuple of camera position offset
-        """
-        
-        # Render the static background image
-        screen.blit(self.background_image, (0, 0))
-        
-        # === RENDER ATMOSPHERIC PARTICLES ===
-        # Natural particles like snow
-        self.render_atmospheric_particles(screen, camera_offset)
-    
-    def render_foreground(self, screen, camera_offset):
-        """
-        Render foreground elements, such as weather effects.
-        """
-        # === RENDER ATMOSPHERIC PARTICLES ===
-        # Natural particles like snow
-        self.render_atmospheric_particles(screen, camera_offset)
-
-    def render_atmospheric_particles(self, screen, camera_offset):
-        """
-        Render natural atmospheric particles
-        
-        Args:
-            screen: Pygame surface to render to
-            camera_offset: Camera position for parallax calculation
-        """
-        
-        # Update and render particles
-        for particle in self.particles[:]: # Iterate over a copy
+    def update_particles(self):
+        """Update snow particle positions and lifetimes."""
+        for particle in self.particles[:]:  # Iterate over a copy
             # Handle landed particles
             if particle['landed_timer'] > 0:
                 particle['landed_timer'] -= 1
@@ -928,23 +872,74 @@ class Plains(Stage):
                     if platform.get_rect().collidepoint(particle['x'], particle['y']):
                         particle['vy'] = 0
                         particle['vx'] = 0
-                        particle['landed_timer'] = 120 # Despawn after 2 seconds
+                        particle['landed_timer'] = 120  # Despawn after 2 seconds
                         break
 
+            # Remove particles that are off-screen or dead
+            if particle['lifetime'] <= 0:
+                self.particles.remove(particle)
+    
+    def render_background(self, screen, camera_offset):
+        """
+        Render the Plains background with a static image and particle effects.
+        
+        Args:
+            screen: Pygame surface to render to
+            camera_offset: (x, y) tuple of camera position offset
+        """
+        
+        # Render the static background image with a parallax effect
+        parallax_offset_x = camera_offset[0] * 0.1  # Scroll at 10% of camera speed
+        parallax_offset_y = camera_offset[1] * 0.1
+        screen.blit(self.background_image, (-parallax_offset_x, -parallax_offset_y))
+        
+        # === RENDER ATMOSPHERIC PARTICLES ===
+        # Natural particles like snow
+        self.render_atmospheric_particles(screen, camera_offset)
+    
+    def render_foreground(self, screen, camera_offset):
+        """
+        Render foreground elements, such as weather effects.
+        """
+        # === RENDER ATMOSPHERIC PARTICLES ===
+        # Natural particles like snow
+        self.render_atmospheric_particles(screen, camera_offset)
+        
+        # === RENDER KO PARTICLES ===
+        # Render KO particles if they were passed from the game state
+        if hasattr(self, 'ko_particles_from_game') and self.ko_particles_from_game:
+            self.render_ko_particles_here(screen, camera_offset, self.ko_particles_from_game)
+    
+    def render_ko_particles_here(self, screen, camera_offset, ko_particles):
+        """Render KO particles directly in the stage foreground alongside snow."""
+        for p in ko_particles:
+            # Calculate screen position from world position
+            pos_x = p['pos'][0] - camera_offset[0]
+            pos_y = p['pos'][1] - camera_offset[1]
+            
+            # Only draw if on screen
+            if -50 <= pos_x <= screen.get_width() + 50 and -50 <= pos_y <= screen.get_height() + 50:
+                # Draw clean particles
+                pygame.draw.circle(screen, p['color'], (int(pos_x), int(pos_y)), p['size'])
+
+    def render_atmospheric_particles(self, screen, camera_offset):
+        """
+        Render natural atmospheric particles
+        
+        Args:
+            screen: Pygame surface to render to
+            camera_offset: Camera position for parallax calculation
+        """
+        
+        # Just render particles, don't update them here
+        for particle in self.particles:
             screen_x = particle['x'] - camera_offset[0]
             screen_y = particle['y'] - camera_offset[1]
 
-            # Despawn if off-screen
-            if not (0 <= screen_x <= screen.get_width() and 0 <= screen_y <= screen.get_height()):
-                if particle['landed_timer'] == -1: # Only remove if not already landed
-                    self.particles.remove(particle)
-                    continue
-
-            # Draw particle
-            pygame.draw.circle(screen, particle['color'], (int(screen_x), int(screen_y)), particle['size'])
-
-        # Remove dead particles
-        self.particles = [p for p in self.particles if p['lifetime'] > 0]
+            # Only draw if on screen
+            if 0 <= screen_x <= screen.get_width() and 0 <= screen_y <= screen.get_height():
+                # Draw particle with white color
+                pygame.draw.circle(screen, (255, 255, 255), (int(screen_x), int(screen_y)), particle['size'])
     
     def render_platforms(self, screen, camera_offset):
         """

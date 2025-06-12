@@ -182,7 +182,7 @@ class PhysicsManager:
         self.spatial_grid = {}  # TODO: Implement spatial hashing
 
         # KO tracking
-        self.k_o_d_players_this_frame = []
+        self.k_o_d_players_this_frame = {}
     
     def update(self, delta_time, characters, stage):
         """
@@ -200,7 +200,7 @@ class PhysicsManager:
         - Performance optimization for larger character counts
         """
         # Reset KO'd players for this frame
-        self.k_o_d_players_this_frame = []
+        self.k_o_d_players_this_frame = {}
 
         # === CHARACTER PHYSICS (COMPLETED) ===
         # Update each character's movement, gravity, and stage collision
@@ -513,7 +513,10 @@ class PhysicsManager:
         if ko_direction:
             # self.ko_character(character, ko_direction)
             if character.player_id not in self.k_o_d_players_this_frame:
-                self.k_o_d_players_this_frame.append(character.player_id)
+                self.k_o_d_players_this_frame[character.player_id] = {
+                    "direction": ko_direction,
+                    "position": character.position.copy()
+                }
                 print(f"💀 Player {character.player_id} KO'd by {ko_direction} blast zone! Flagged for KO.")
     
     def get_stage_blast_zones(self, stage):

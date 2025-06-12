@@ -18,6 +18,7 @@ from src.characters.warrior import Warrior
 from src.characters.speedster import Speedster
 from src.characters.heavy import Heavy
 import os
+import random
 
 class GameStateType(Enum):
     """
@@ -108,6 +109,18 @@ class GameplayState(GameState):
         self.respawn_timer = {}  # Player respawn timers
         self.respawn_positions = {1: (300, 400), 2: (900, 400)}  # Respawn positions
         
+        self.ko_particles = []
+
+        # Load death sound effects
+        try:
+            self.fall_sound = pygame.mixer.Sound('assets/audio/fall.mp3')
+            self.rare_fall_sound = pygame.mixer.Sound('assets/audio/rare fall.mp3')
+            print("✓ Death sound effects loaded successfully")
+        except pygame.error as e:
+            self.fall_sound = None
+            self.rare_fall_sound = None
+            print(f"Warning: Could not load death sound effects: {e}")
+
         print("Gameplay state initialized")
     
     def enter(self):
@@ -252,13 +265,26 @@ class GameplayState(GameState):
         Handle gameplay-specific events
         """
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                # Return to main menu
+            if event.key == pygame.K_r:
+                # Reset match
+                self.respawn_timer = {}
+                self.reset_character_positions()
+                print("Match reset!")
+                return True
+            elif event.key == pygame.K_F3:
+                # Toggle debug mode
+                self.game_engine.debug_mode = not self.game_engine.debug_mode
+                print(f"Debug mode: {self.game_engine.debug_mode}")
+                return True
+            elif event.key == pygame.K_ESCAPE:
+                # Return to menu
                 self.state_manager.change_state(GameStateType.MAIN_MENU)
                 return True
-            elif event.key == pygame.K_r:
-                # Reset match
-                self.enter()
+            elif event.key == pygame.K_t:
+                # DEBUG: Test KO particles manually
+                print("🎆 MANUAL KO PARTICLE TEST!")
+                test_position = [640, 360]  # Center of screen
+                self.trigger_ko_effect("bottom", test_position)
                 return True
         
         return False
@@ -291,8 +317,8 @@ class GameplayState(GameState):
         k_o_d_players = physics_manager.update(delta_time, self.characters, stage_to_pass)
         
         # Handle KOs from blast zones
-        for player_id in k_o_d_players:
-            self.ko_player(player_id)
+        for player_id, ko_info in k_o_d_players.items():
+            self.ko_player(player_id, ko_info)
         
         # Check for damage-based KOs
         if 1 not in self.respawn_timer and self.player1_character.damage_percent >= 300:
@@ -303,6 +329,9 @@ class GameplayState(GameState):
         # Update stage dynamics (weather, animations, etc.)
         if hasattr(self, 'stage_object'):
             self.stage_object.update(delta_time)
+        
+        # Update KO particles
+        self.update_ko_particles(delta_time)
         
         # Simple camera following
         self.update_camera()
@@ -398,7 +427,7 @@ class GameplayState(GameState):
         # Render stage background
         self.render_stage_background(screen)
         
-        # Render characters (only if not respawning)
+        # Render characters
         camera_offset = (self.camera_x, self.camera_y)
         if 1 not in self.respawn_timer:
             self.player1_character.render(screen, camera_offset)
@@ -410,6 +439,9 @@ class GameplayState(GameState):
         
         # Render UI
         self.render_ui(screen)
+        
+        # Render all visual effects on top of everything else
+        self.render_visual_effects(screen, camera_offset)
     
     def render_stage_background(self, screen):
         """
@@ -425,8 +457,7 @@ class GameplayState(GameState):
             # Render platforms with full styling
             self.stage_object.render_platforms(screen, camera_offset)
             
-            # Render foreground effects (lighting, particles, etc.)
-            self.stage_object.render_foreground(screen, camera_offset)
+            # NOTE: Foreground effects are now rendered in render_visual_effects instead
             
         else:
             # Fallback to legacy rendering for compatibility
@@ -538,7 +569,7 @@ class GameplayState(GameState):
                 text = small_font.render(instruction, True, (255, 255, 0))
                 screen.blit(text, (10, 720 - 80 + i * 20))
 
-    def ko_player(self, player):
+    def ko_player(self, player, ko_info=None):
         """
         KO a player, decrement their lives, and set them up for respawn.
         """
@@ -551,6 +582,9 @@ class GameplayState(GameState):
         print(f"Player {player} has been KO'd!")
         character_to_ko.lose_life()
         
+        if ko_info:
+            self.trigger_ko_effect(ko_info["direction"], ko_info["position"])
+
         # Check for game over
         if character_to_ko.lives <= 0:
             self.check_match_end()
@@ -584,6 +618,98 @@ class GameplayState(GameState):
             self.player2_character.position[1] = pos[1]
             self.player2_character.velocity = [0, 0]
             self.player2_character.is_in_hitstun = False
+
+    def trigger_ko_effect(self, direction, position):
+        """Spawns a burst of 'confetti' particles from the direction of the KO."""
+        particle_count = 50
+        
+        # Play death sound effect
+        self.play_death_sound()
+        
+        for _ in range(particle_count):
+            if direction == 'bottom':
+                # Spawn from bottom of screen, moving upward
+                x = position[0] + random.uniform(-100, 100)  # Around the KO position
+                y = position[1] + random.uniform(50, 100)   # Below the KO position
+                vx = random.uniform(-8, 8)
+                vy = random.uniform(-25, -15)  # Much faster upward movement
+            elif direction == 'top':
+                # Spawn from top of screen, moving downward
+                x = position[0] + random.uniform(-100, 100)
+                y = position[1] - random.uniform(50, 100)   # Above the KO position
+                vx = random.uniform(-8, 8)
+                vy = random.uniform(15, 25)   # Much faster downward movement
+            elif direction == 'left':
+                # Spawn from left side, moving right and upward
+                x = position[0] - random.uniform(50, 100)   # Left of KO position
+                y = position[1] + random.uniform(-100, 100)
+                vx = random.uniform(10, 20)   # Much faster rightward movement
+                vy = random.uniform(-15, -5)  # Strong upward component
+            elif direction == 'right':
+                # Spawn from right side, moving left and upward
+                x = position[0] + random.uniform(50, 100)   # Right of KO position
+                y = position[1] + random.uniform(-100, 100)
+                vx = random.uniform(-20, -10)  # Much faster leftward movement
+                vy = random.uniform(-15, -5)   # Strong upward component
+            
+            # Generate red and white colors only
+            color_choice = random.choice(['red', 'white'])
+            if color_choice == 'red':
+                color = (random.randint(180, 255), random.randint(0, 60), random.randint(0, 60))  # Various reds
+            else:
+                color = (random.randint(240, 255), random.randint(240, 255), random.randint(240, 255))  # Various whites
+            
+            self.ko_particles.append({
+                'pos': [x, y],
+                'vel': [vx, vy],
+                'lifetime': random.randint(120, 180),  # Even longer lifetime for higher velocities
+                'color': color,
+                'size': random.randint(6, 12)
+            })
+
+    def play_death_sound(self):
+        """Play death sound effect when a player is KO'd."""
+        if self.fall_sound is None:
+            return  # No sound files loaded
+        
+        # 1 in 75 chance to play rare fall sound
+        if random.randint(1, 75) == 1 and self.rare_fall_sound:
+            print("🎵 Playing rare fall sound!")
+            self.rare_fall_sound.play()
+        else:
+            self.fall_sound.play()
+
+    def update_ko_particles(self, delta_time):
+        """Update the position and lifetime of KO particles."""
+        for p in self.ko_particles[:]:
+            p['pos'][0] += p['vel'][0]
+            p['pos'][1] += p['vel'][1]
+            p['vel'][1] += 0.2  # Stronger gravity for more dramatic arcs
+            p['lifetime'] -= 1
+            if p['lifetime'] <= 0:
+                self.ko_particles.remove(p)
+
+    def render_ko_particles(self, screen, camera_offset):
+        """Render the KO particles."""
+        for p in self.ko_particles:
+            pos_x = p['pos'][0] - camera_offset[0]
+            pos_y = p['pos'][1] - camera_offset[1]
+            # Simple, clean particle rendering
+            pygame.draw.circle(screen, p['color'], (int(pos_x), int(pos_y)), p['size'])
+
+    def render_visual_effects(self, screen, camera_offset):
+        """
+        Renders all particle effects and other visual overlays.
+        This is called last to ensure effects appear on top of game elements.
+        """
+        # Render stage-specific foreground effects (e.g., snow) AND KO particles together
+        if hasattr(self, 'stage_object') and hasattr(self.stage_object, 'render_foreground'):
+            # Pass KO particles to the stage so they can be rendered alongside snow
+            self.stage_object.ko_particles_from_game = self.ko_particles
+            self.stage_object.render_foreground(screen, camera_offset)
+        
+        # ALSO render KO particles here as backup
+        self.render_ko_particles(screen, camera_offset)
 
 class SimpleMenuState(GameState):
     """

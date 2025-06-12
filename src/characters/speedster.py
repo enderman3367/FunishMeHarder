@@ -197,7 +197,7 @@ class Speedster(Character):
                 'startup_frames': 3,  # Super fast startup
                 'active_frames': 2,
                 'recovery_frames': 0,
-                'damage': 5,
+                'damage': 12,
                 'knockback': 4,
                 'range': 50
             }
