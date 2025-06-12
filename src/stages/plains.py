@@ -133,6 +133,21 @@ class Plains(Stage):
         print(f"✓ Snowdin stage initialized with {len(self.platforms)} platforms")
         print(f"✓ Wind blowing {['left', 'right'][self.wind_direction == 1]} at {self.wind_strength:.1f} strength")
     
+    def spawn_particle(self):
+        """Spawns a single snow particle at a random location at the top of the screen."""
+        x = random.uniform(0, self.width)
+        y = random.uniform(-50, -10)
+        vx = random.uniform(-0.5, 0.5) + self.wind_direction * self.wind_strength
+        vy = random.uniform(0.5, 1.5)
+        size = random.randint(1, 3)
+        lifetime = random.randint(300, 600) # Frames
+        
+        self.particles.append({
+            'x': x, 'y': y, 'vx': vx, 'vy': vy, 
+            'size': size, 'lifetime': lifetime, 'landed_timer': -1,
+            'color': (255, 255, 255, random.randint(150, 220))
+        })
+
     def setup_platforms(self):
         """
         Create the Castle platform layout.
@@ -747,6 +762,10 @@ class Plains(Stage):
             self.total_elapsed_time = 0.0
         self.total_elapsed_time += delta_time
         
+        # Spawn new particles
+        if random.random() < 0.5: # Spawn roughly every other frame
+            self.spawn_particle()
+        
         # === UPDATE WEATHER SYSTEM ===
         if self.weather_enabled:
             self.update_weather_effects(delta_time)
@@ -870,6 +889,14 @@ class Plains(Stage):
         # Natural particles like snow
         self.render_atmospheric_particles(screen, camera_offset)
     
+    def render_foreground(self, screen, camera_offset):
+        """
+        Render foreground elements, such as weather effects.
+        """
+        # === RENDER ATMOSPHERIC PARTICLES ===
+        # Natural particles like snow
+        self.render_atmospheric_particles(screen, camera_offset)
+
     def render_atmospheric_particles(self, screen, camera_offset):
         """
         Render natural atmospheric particles
@@ -880,18 +907,41 @@ class Plains(Stage):
         """
         
         # Update and render particles
-        for particle in self.particles:
-            particle['x'] += particle['vx']
-            particle['y'] += particle['vy']
-            particle['lifetime'] -= 1
-            
-            # Apply wind
-            particle['x'] += self.wind_direction * self.wind_strength * 0.5
+        for particle in self.particles[:]: # Iterate over a copy
+            # Handle landed particles
+            if particle['landed_timer'] > 0:
+                particle['landed_timer'] -= 1
+                if particle['landed_timer'] == 0:
+                    self.particles.remove(particle)
+                    continue
+            else:
+                # Movement
+                particle['x'] += particle['vx']
+                particle['y'] += particle['vy']
+                particle['lifetime'] -= 1
+
+                # Apply wind
+                particle['x'] += self.wind_direction * self.wind_strength * 0.2
+
+                # Check for collision with platforms
+                for platform in self.platforms:
+                    if platform.get_rect().collidepoint(particle['x'], particle['y']):
+                        particle['vy'] = 0
+                        particle['vx'] = 0
+                        particle['landed_timer'] = 120 # Despawn after 2 seconds
+                        break
 
             screen_x = particle['x'] - camera_offset[0]
             screen_y = particle['y'] - camera_offset[1]
 
-            pygame.draw.circle(screen, particle['color'], (screen_x, screen_y), particle['size'])
+            # Despawn if off-screen
+            if not (0 <= screen_x <= screen.get_width() and 0 <= screen_y <= screen.get_height()):
+                if particle['landed_timer'] == -1: # Only remove if not already landed
+                    self.particles.remove(particle)
+                    continue
+
+            # Draw particle
+            pygame.draw.circle(screen, particle['color'], (int(screen_x), int(screen_y)), particle['size'])
 
         # Remove dead particles
         self.particles = [p for p in self.particles if p['lifetime'] > 0]

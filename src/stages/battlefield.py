@@ -102,6 +102,12 @@ class Battlefield(Stage):
         self.setup_visuals()       # Initialize graphics and effects
         self.setup_camera_bounds() # Define camera movement limits
         
+        try:
+            self.background_image = pygame.image.load('assets/images/battlefield bg.png').convert()
+        except pygame.error:
+            self.background_image = None
+            print("Warning: Could not load battlefield bg.png. Using procedural background.")
+
         print(f"✓ Battlefield stage initialized with {len(self.platforms)} platforms")
     
     def setup_platforms(self):
@@ -616,6 +622,11 @@ class Battlefield(Stage):
         
         # === RENDER SKY GRADIENT ===
         # Create a smooth gradient from light blue to white
+        if self.background_image:
+            scaled_bg = pygame.transform.scale(self.background_image, screen.get_size())
+            screen.blit(scaled_bg, (0, 0))
+            return
+            
         sky_layer = self.background_layers[0]
         
         if sky_layer["type"] == "gradient":

@@ -79,6 +79,12 @@ class Platform:
         # This method will be expanded for moving platforms, breakable platforms, etc.
         pass
     
+    def get_rect(self):
+        """
+        Returns a pygame.Rect object representing the platform's boundaries.
+        """
+        return pygame.Rect(self.x, self.y, self.width, self.height)
+    
     def get_collision_rect(self):
         """
         Get collision rectangle for this platform
